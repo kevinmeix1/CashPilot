@@ -29,7 +29,17 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import type { CashAction, DashboardPayload, ForecastPoint, RevenueOpportunity } from "./types/domain";
+import { ForecastRiskScene } from "./components/ForecastRiskScene";
+import type {
+  AdaptiveIntegrationCandidate,
+  AuditLogEntry,
+  CashAction,
+  DashboardPayload,
+  EntityMatch,
+  ForecastPoint,
+  ProductivityAutomationTask,
+  RevenueOpportunity
+} from "./types/domain";
 
 type Horizon = 30 | 60 | 90;
 type SourceMode = "demo" | "xero";
@@ -60,6 +70,9 @@ export function App() {
   const [horizon, setHorizon] = useState<Horizon>(30);
   const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
   const [selectedOpportunityIds, setSelectedOpportunityIds] = useState<string[]>([]);
+  const [selectedProductivityTaskIds, setSelectedProductivityTaskIds] = useState<string[]>([]);
+  const [selectedIntegrationCandidateIds, setSelectedIntegrationCandidateIds] = useState<string[]>([]);
+  const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([]);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -84,6 +97,9 @@ export function App() {
     setXeroStatus(xero);
     setSelectedActionIds(dashboard.recommendedActions.map((action) => action.id));
     setSelectedOpportunityIds(dashboard.revenueOpportunities.map((opportunity) => opportunity.id));
+    setSelectedProductivityTaskIds(dashboard.productivityTasks.map((task) => task.id));
+    setSelectedIntegrationCandidateIds(dashboard.integrationCandidates.map((candidate) => candidate.id));
+    setAuditEntries(dashboard.auditLog);
     setLoading(false);
   }
 
@@ -122,6 +138,8 @@ export function App() {
         body: JSON.stringify({
           cashActionIds: selectedActionIds,
           revenueOpportunityIds: selectedOpportunityIds,
+          productivityTaskIds: selectedProductivityTaskIds,
+          integrationCandidateIds: selectedIntegrationCandidateIds,
           source
         })
       });
@@ -129,8 +147,10 @@ export function App() {
       if (!response.ok) throw new Error("Approval queue request failed");
 
       const result = await response.json();
+      const newAuditEntries = Array.isArray(result.auditLog) ? (result.auditLog as AuditLogEntry[]) : [];
+      setAuditEntries((current) => [...newAuditEntries, ...current].slice(0, 12));
       setApprovalStatus(
-        `${result.counts.cashActions} cash-flow action(s) and ${result.counts.revenueOpportunities} growth action(s) queued.`
+        `${result.counts.cashActions} cash-flow, ${result.counts.revenueOpportunities} growth, ${result.counts.productivityTasks} productivity, and ${result.counts.integrationCandidates} integration action(s) queued.`
       );
     } catch (caught) {
       setApprovalStatus(caught instanceof Error ? caught.message : "Unable to queue selected actions.");
@@ -155,11 +175,27 @@ export function App() {
     );
   }
 
+  function toggleProductivityTask(taskId: string) {
+    setApprovalStatus(null);
+    setSelectedProductivityTaskIds((current) =>
+      current.includes(taskId) ? current.filter((id) => id !== taskId) : [...current, taskId]
+    );
+  }
+
+  function toggleIntegrationCandidate(candidateId: string) {
+    setApprovalStatus(null);
+    setSelectedIntegrationCandidateIds((current) =>
+      current.includes(candidateId)
+        ? current.filter((id) => id !== candidateId)
+        : [...current, candidateId]
+    );
+  }
+
   if (loading && !payload) {
     return (
       <main className="loadingShell">
         <RefreshCw className="spin" aria-hidden="true" />
-        <span>Booting CashFlow Radar</span>
+        <span>Booting CashPilot</span>
       </main>
     );
   }
@@ -181,7 +217,17 @@ export function App() {
   const activeOpportunities = payload.revenueOpportunities.filter((opportunity) =>
     selectedOpportunityIds.includes(opportunity.id)
   );
-  const approvalCount = selectedActionIds.length + selectedOpportunityIds.length;
+  const activeProductivityTasks = payload.productivityTasks.filter((task) =>
+    selectedProductivityTaskIds.includes(task.id)
+  );
+  const activeIntegrationCandidates = payload.integrationCandidates.filter((candidate) =>
+    selectedIntegrationCandidateIds.includes(candidate.id)
+  );
+  const approvalCount =
+    selectedActionIds.length +
+    selectedOpportunityIds.length +
+    selectedProductivityTaskIds.length +
+    selectedIntegrationCandidateIds.length;
   const xeroRecordStats = [
     ["Invoices", payload.xero.records.invoices],
     ["Contacts", payload.xero.records.contacts],
@@ -208,8 +254,8 @@ export function App() {
         <div className="brandMark">
           <RadioTower size={18} aria-hidden="true" />
           <div>
-            <strong>CashFlow Radar</strong>
-            <span>Xero agent cockpit</span>
+            <strong>CashPilot</strong>
+            <span>Xero revenue agent</span>
           </div>
         </div>
 
@@ -275,12 +321,12 @@ export function App() {
           <div className="commandTitle">
             <div className="eyebrow">
               <Sparkles size={16} aria-hidden="true" />
-              Xero growth command
+              AI revenue and cashflow agent for Xero
             </div>
             <h1>
-              Revenue <em>radar</em>
+              CashPilot <em>agent</em>
             </h1>
-            <p>{payload.snapshot.organisationName} · cash-flow risk, revenue opportunities, and approved actions</p>
+            <p>{payload.snapshot.organisationName} · Xero, messy CRM/e-commerce data, forecast risk, and approved actions</p>
           </div>
           <div className="commandRight">
             <div className="statusCluster" aria-label="System status">
@@ -356,7 +402,7 @@ export function App() {
             <div>
               <span className="sectionLabel">Pending approval</span>
               <h2>
-                {activeActions.length} cash-flow action(s) and {activeOpportunities.length} growth action(s) selected
+                {approvalCount} Xero-backed action(s) selected across growth, cash, productivity, and integrations
               </h2>
             </div>
             <FileClock size={20} aria-hidden="true" />
@@ -397,8 +443,46 @@ export function App() {
                 )}
               </div>
             </div>
+
+            <div className="approvalGroup">
+              <div className="approvalGroupHeader">
+                <strong>Productivity automations</strong>
+                <span>{formatDuration(activeProductivityTasks.reduce((sum, task) => sum + task.timeSavedMinutes, 0))}</span>
+              </div>
+              <div className="approvalList">
+                {activeProductivityTasks.length > 0 ? (
+                  activeProductivityTasks.map((task) => (
+                    <ApprovalProductivityItem key={task.id} task={task} onToggle={() => toggleProductivityTask(task.id)} />
+                  ))
+                ) : (
+                  <EmptyApprovalState label="No productivity automations selected" />
+                )}
+              </div>
+            </div>
+
+            <div className="approvalGroup">
+              <div className="approvalGroupHeader">
+                <strong>Adaptive integrations</strong>
+                <span>{money(activeIntegrationCandidates.reduce((sum, candidate) => sum + candidate.expectedValue, 0))}</span>
+              </div>
+              <div className="approvalList">
+                {activeIntegrationCandidates.length > 0 ? (
+                  activeIntegrationCandidates.map((candidate) => (
+                    <ApprovalIntegrationItem
+                      key={candidate.id}
+                      candidate={candidate}
+                      onToggle={() => toggleIntegrationCandidate(candidate.id)}
+                    />
+                  ))
+                ) : (
+                  <EmptyApprovalState label="No integration syncs selected" />
+                )}
+              </div>
+            </div>
           </div>
         </section>
+
+        <SmartMappingReviewPanel matches={payload.entityMatches} summary={payload.smartMappingSummary} />
 
         <section className="ownerPanel">
           <div className="panelHeader compact">
@@ -432,6 +516,20 @@ export function App() {
             ))}
           </div>
         </section>
+
+        <ProductivityPowerhousePanel
+          selectedIds={selectedProductivityTaskIds}
+          summary={payload.productivitySummary}
+          tasks={payload.productivityTasks}
+          onToggle={toggleProductivityTask}
+        />
+
+        <AdaptiveIntegrationHubPanel
+          candidates={payload.integrationCandidates}
+          selectedIds={selectedIntegrationCandidateIds}
+          summary={payload.integrationSummary}
+          onToggle={toggleIntegrationCandidate}
+        />
 
         <section className="mainGrid">
           <div className="chartPanel">
@@ -519,7 +617,12 @@ export function App() {
           </aside>
         </section>
 
-        <ForecastIntelligencePanel intelligence={payload.forecastIntelligence} />
+        <ForecastIntelligencePanel
+          afterActions={payload.afterActions}
+          baseline={payload.baseline}
+          intelligence={payload.forecastIntelligence}
+          threshold={payload.snapshot.safeCashThreshold}
+        />
 
         <section className="pipelineGrid">
           <div className="pipelinePanel">
@@ -678,14 +781,79 @@ export function App() {
             ))}
           </div>
         </section>
+
+        <AuditLogPanel entries={auditEntries} />
       </section>
     </main>
   );
 }
 
+function SmartMappingReviewPanel({
+  summary,
+  matches
+}: {
+  summary: DashboardPayload["smartMappingSummary"];
+  matches: EntityMatch[];
+}) {
+  return (
+    <section className="bountyPanel mappingPanel">
+      <div className="panelHeader compact">
+        <div>
+          <span className="sectionLabel">Smart Mapping Review</span>
+          <h2>Messy external records matched to Xero contacts with evidence</h2>
+        </div>
+        <Link2 size={20} aria-hidden="true" />
+      </div>
+
+      <div className="bountySummaryGrid">
+        <Stat label="Matches" value={String(summary.totalMatches)} />
+        <Stat label="High confidence" value={String(summary.highConfidenceMatches)} />
+        <Stat label="Needs review" value={String(summary.needsReview)} />
+        <Stat label="Best match" value={summary.bestMatch ?? "None"} />
+      </div>
+
+      <div className="mappingGrid">
+        {matches.slice(0, 6).map((match) => (
+          <article key={match.matchId} className={`mappingCard ${match.confidence >= 0.86 ? "high" : "medium"}`}>
+            <div className="mappingTop">
+              <div>
+                <strong>{match.externalName}</strong>
+                <span>
+                  {match.sourceSystem} · {match.externalRecordType} · {money(match.externalAmount)}
+                </span>
+              </div>
+              <em>{percent(match.confidence)}</em>
+            </div>
+            <div className="mappingArrow">
+              <span>{match.externalTitle}</span>
+              <strong>{match.xeroContactName ?? "Needs new Xero contact"}</strong>
+            </div>
+            <div className="driverEvidence">
+              {match.evidence.map((item) => (
+                <span key={`${match.matchId}-${item}`}>{item}</span>
+              ))}
+            </div>
+            <div className="mappingActions">
+              <button type="button">Approve match</button>
+              <button type="button">Reject</button>
+              <button type="button">New contact</button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ForecastIntelligencePanel({
+  afterActions,
+  baseline,
+  threshold,
   intelligence
 }: {
+  afterActions: DashboardPayload["afterActions"];
+  baseline: DashboardPayload["baseline"];
+  threshold: number;
   intelligence: DashboardPayload["forecastIntelligence"];
 }) {
   return (
@@ -698,6 +866,13 @@ function ForecastIntelligencePanel({
         <TrendingUp size={20} aria-hidden="true" />
       </div>
       <p className="intelSummary">{intelligence.explainabilitySummary}</p>
+
+      <ForecastRiskScene
+        afterActions={afterActions}
+        baseline={baseline}
+        drivers={intelligence.cashDrivers}
+        threshold={threshold}
+      />
 
       <div className="intelGrid">
         <div className="modelPanel">
@@ -753,6 +928,194 @@ function ForecastIntelligencePanel({
             ))}
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function AuditLogPanel({ entries }: { entries: AuditLogEntry[] }) {
+  return (
+    <section className="bountyPanel auditPanel">
+      <div className="panelHeader compact">
+        <div>
+          <span className="sectionLabel">Audit Log</span>
+          <h2>Every recommendation keeps source record traceability</h2>
+        </div>
+        <ShieldCheck size={20} aria-hidden="true" />
+      </div>
+      <div className="auditList">
+        {entries.map((entry) => (
+          <article key={entry.auditId} className="auditItem">
+            <div>
+              <strong>{entry.eventType.replaceAll("_", " ")}</strong>
+              <span>{new Date(entry.createdAt).toLocaleString("en-GB")}</span>
+            </div>
+            <div className="approvalEvidence">
+              {entry.sourceRecordIds.map((id) => (
+                <strong key={`${entry.auditId}-${id}`}>{id}</strong>
+              ))}
+            </div>
+            <p>
+              {String(entry.payload.previousStatus ?? "PENDING")}
+              {" -> "}
+              {String(entry.payload.newStatus ?? "RECORDED")}
+            </p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ProductivityPowerhousePanel({
+  summary,
+  tasks,
+  selectedIds,
+  onToggle
+}: {
+  summary: DashboardPayload["productivitySummary"];
+  tasks: ProductivityAutomationTask[];
+  selectedIds: string[];
+  onToggle: (taskId: string) => void;
+}) {
+  return (
+    <section className="bountyPanel productivityPanel">
+      <div className="panelHeader compact">
+        <div>
+          <span className="sectionLabel">Bounty 01 · Productivity Powerhouse</span>
+          <h2>Automates messy finance admin with Xero as the workflow centre</h2>
+        </div>
+        <Workflow size={20} aria-hidden="true" />
+      </div>
+
+      <div className="bountySummaryGrid">
+        <Stat label="Tasks found" value={String(summary.tasksDetected)} />
+        <Stat label="Auto-resolvable" value={String(summary.autoResolvableTasks)} />
+        <Stat label="Needs review" value={String(summary.exceptionTasks)} />
+        <Stat label="Time saved" value={formatDuration(summary.estimatedMinutesSaved)} />
+      </div>
+
+      <div className="bountySubhead">
+        <strong>{summary.highestImpactTask ?? "No task detected"}</strong>
+        <span>{summary.xeroTouchpoints.join(" · ")}</span>
+      </div>
+
+      <div className="automationGrid">
+        {tasks.map((task) => (
+          <article key={task.id} className={`automationCard ${task.confidence}`}>
+            <div className="automationTop">
+              <label className="actionSelector">
+                <input type="checkbox" checked={selectedIds.includes(task.id)} onChange={() => onToggle(task.id)} />
+                <span>{task.title}</span>
+              </label>
+              <strong>{percent(task.confidenceScore)}</strong>
+            </div>
+            <div className="automationWorkflow">
+              <span>{task.workflow}</span>
+              <strong>{task.xeroTarget}</strong>
+            </div>
+            <p>{task.businessImpact}</p>
+            <div className="messySignalList">
+              {task.messySignals.slice(0, 3).map((signal) => (
+                <span key={`${task.id}-${signal}`}>{signal}</span>
+              ))}
+            </div>
+            <div className="automationSteps">
+              {task.automationSteps.slice(0, 4).map((step, index) => (
+                <div key={`${task.id}-${step}`}>
+                  <span>{index + 1}</span>
+                  <p>{step}</p>
+                </div>
+              ))}
+            </div>
+            <div className="approvalPreview">
+              <strong>{formatDuration(task.timeSavedMinutes)} saved</strong>
+              <span>{task.recommendedAction}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AdaptiveIntegrationHubPanel({
+  summary,
+  candidates,
+  selectedIds,
+  onToggle
+}: {
+  summary: DashboardPayload["integrationSummary"];
+  candidates: AdaptiveIntegrationCandidate[];
+  selectedIds: string[];
+  onToggle: (candidateId: string) => void;
+}) {
+  return (
+    <section className="bountyPanel integrationPanel">
+      <div className="panelHeader compact">
+        <div>
+          <span className="sectionLabel">Bounty 02 · Vibe Integrator</span>
+          <h2>AI-powered universal translator between messy business tools and Xero</h2>
+        </div>
+        <Link2 size={20} aria-hidden="true" />
+      </div>
+
+      <div className="bountySummaryGrid">
+        <Stat label="Source systems" value={String(summary.sourceSystems.length)} />
+        <Stat label="Sync candidates" value={String(summary.candidatesDetected)} />
+        <Stat label="Ready to sync" value={String(summary.readyToSync)} />
+        <Stat label="Mapped value" value={money(summary.totalMappedValue)} />
+      </div>
+
+      <div className="bountySubhead">
+        <strong>{summary.topSyncAction ?? "No sync action detected"}</strong>
+        <span>{summary.sourceSystems.join(" · ")}</span>
+      </div>
+
+      <div className="integrationGrid">
+        {candidates.map((candidate) => (
+          <article key={candidate.id} className={`integrationCard ${candidate.confidence}`}>
+            <div className="integrationTop">
+              <label className="actionSelector">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(candidate.id)}
+                  onChange={() => onToggle(candidate.id)}
+                />
+                <span>{candidate.title}</span>
+              </label>
+              <div className="sourceBadge">{candidate.sourceSystem}</div>
+            </div>
+            <div className="rawSignal">{candidate.rawSignal}</div>
+            <div className="mappingTarget">
+              <span>{humanizeIdentifier(candidate.mappedXeroObject)}</span>
+              <strong>{candidate.targetXeroRecord}</strong>
+              <em>{percent(candidate.confidenceScore)} confidence</em>
+            </div>
+            <div className="fieldMapGrid">
+              {candidate.fieldMappings.slice(0, 4).map((mapping) => (
+                <div key={`${candidate.id}-${mapping.sourceField}`}>
+                  <span>{mapping.sourceField}</span>
+                  <strong>{mapping.xeroField}</strong>
+                  <p>
+                    {mapping.sourceValue}
+                    {" -> "}
+                    {mapping.mappedValue}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="resilienceList">
+              {candidate.resilienceNotes.slice(0, 3).map((note) => (
+                <span key={`${candidate.id}-${note}`}>{note}</span>
+              ))}
+            </div>
+            <div className="approvalPreview">
+              <strong>{candidate.missingFields.length > 0 ? "Review required" : "Ready to sync"}</strong>
+              <span>{candidate.syncAction}</span>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   );
@@ -828,6 +1191,54 @@ function ApprovalOpportunityItem({
       </div>
       <p>{opportunity.recommendedAction}</p>
       <ApprovalPlan plan={opportunity.approvalPlan} />
+    </article>
+  );
+}
+
+function ApprovalProductivityItem({
+  task,
+  onToggle
+}: {
+  task: ProductivityAutomationTask;
+  onToggle: () => void;
+}) {
+  return (
+    <article className="approvalItem productivity">
+      <label className="approvalSelector">
+        <input type="checkbox" checked onChange={onToggle} />
+        <span>{task.title}</span>
+      </label>
+      <div className="approvalMeta">
+        <span>{task.sourceRecord}</span>
+        <span>{task.type.replaceAll("_", " ")}</span>
+        <strong>{formatDuration(task.timeSavedMinutes)}</strong>
+      </div>
+      <p>{task.recommendedAction}</p>
+      <ApprovalPlan plan={task.approvalPlan} />
+    </article>
+  );
+}
+
+function ApprovalIntegrationItem({
+  candidate,
+  onToggle
+}: {
+  candidate: AdaptiveIntegrationCandidate;
+  onToggle: () => void;
+}) {
+  return (
+    <article className="approvalItem integration">
+      <label className="approvalSelector">
+        <input type="checkbox" checked onChange={onToggle} />
+        <span>{candidate.title}</span>
+      </label>
+      <div className="approvalMeta">
+        <span>{candidate.sourceSystem}</span>
+        <span>{humanizeIdentifier(candidate.mappedXeroObject)}</span>
+        <strong>{money(candidate.expectedValue)}</strong>
+      </div>
+      <p>{candidate.syncAction}</p>
+      <ApprovalPlan plan={candidate.approvalPlan} />
     </article>
   );
 }
@@ -931,6 +1342,21 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function money(value: number) {
   return currencyFormatter.format(value);
+}
+
+function percent(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatDuration(minutes: number) {
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+function humanizeIdentifier(value: string) {
+  return value.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " ");
 }
 
 function formatShortDate(value: ForecastPoint["date"]) {

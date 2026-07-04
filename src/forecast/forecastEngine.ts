@@ -34,7 +34,7 @@ export function assessDataQuality(snapshot: XeroSnapshot): DataQualityResult {
     issues.push({
       severity: "critical",
       title: "Opening cash is missing or non-positive",
-      detail: "CashFlow Radar needs a current bank/cash balance before the forecast can be trusted."
+      detail: "CashPilot needs a current bank/cash balance before the forecast can be trusted."
     });
   }
 

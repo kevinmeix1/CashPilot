@@ -1,8 +1,8 @@
 {
-  "name": "cashflow-radar",
+  "name": "cashpilot",
   "version": "0.1.0",
   "private": true,
-  "description": "Xero-powered revenue and cash-flow action cockpit for small businesses.",
+  "description": "AI revenue and cash-flow agent for Xero-powered small businesses.",
   "type": "module",
   "keywords": [
     "xero",
@@ -17,6 +17,7 @@
     "dev:api": "tsx src/server/index.ts",
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1",
+    "test": "tsx tests/runTests.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.15.0",
+    "three": "^0.185.1",
     "xero-node": "^7.0.0",
     "zod": "^4.0.0"
   },
@@ -38,6 +40,7 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.185.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.5"

@@ -19,9 +19,9 @@ export const demoSnapshot: XeroSnapshot = {
     },
     {
       id: "contact-bright",
-      name: "Bright Studio",
+      name: "Brightside Studios",
       kind: "customer",
-      email: "finance@brightstudio.example",
+      email: "finance@brightside.co.uk",
       medianDaysLate: 5,
       paymentReliability: 0.86,
       relationshipSensitivity: "medium",

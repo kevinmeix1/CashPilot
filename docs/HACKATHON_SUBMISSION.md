@@ -2,7 +2,7 @@
 
 ## One-Liner
 
-CashFlow Radar turns Xero accounting data into a human-approved revenue and cash-flow action plan.
+CashPilot turns Xero accounting data into a human-approved revenue and cash-flow action plan.
 
 For the final submission form, use [Final Submission Checklist](FINAL_SUBMISSION_CHECKLIST.md). For presentation and recording prep, use [Presentation Outline](PRESENTATION_OUTLINE.md) and [Demo Video Script](DEMO_VIDEO_SCRIPT.md).
 
@@ -19,7 +19,7 @@ Most tools show overdue invoices or historical reports. Owners still have to dec
 
 ## Solution
 
-CashFlow Radar combines Xero data, deterministic forecasting, revenue-opportunity models, and AI agent narratives to recommend the highest-impact actions.
+CashPilot combines Xero data, deterministic forecasting, revenue-opportunity models, and AI agent narratives to recommend the highest-impact actions.
 
 The product shows a before-vs-after cash forecast so an owner can see whether selected actions prevent a future breach.
 

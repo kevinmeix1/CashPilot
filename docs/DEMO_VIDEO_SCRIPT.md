@@ -4,7 +4,7 @@ Target length: 2-3 minutes.
 
 ## Opening
 
-"This is CashFlow Radar, a Xero-powered action cockpit for small businesses. It helps owners understand when cash will become risky and what actions will improve revenue and cash flow."
+"This is CashPilot, a Xero-powered action cockpit for small businesses. It helps owners understand when cash will become risky and what actions will improve revenue and cash flow."
 
 ## Step 1: Show Connected Xero Demo
 
@@ -96,4 +96,4 @@ Say:
 
 ## Closing
 
-"CashFlow Radar turns Xero accounting records into the next best revenue and cash-flow actions, with measurable forecast impact and human approval."
+"CashPilot turns Xero accounting records into the next best revenue and cash-flow actions, with measurable forecast impact and human approval."

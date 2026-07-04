@@ -175,6 +175,7 @@ export interface AgentNarrative {
 }
 
 export type RevenueOpportunityType =
+  | "closed_won_not_invoiced"
   | "dormant_customer_reactivation"
   | "upsell_cross_sell"
   | "subscription_conversion"
@@ -207,6 +208,150 @@ export interface RevenueGrowthSummary {
   totalExpectedCashFlow: number;
   opportunitiesDetected: number;
   topOpportunityType: RevenueOpportunityType | null;
+}
+
+export type ExternalRecordType = "DEAL" | "ORDER";
+
+export interface ExternalDeal {
+  externalDealId: string;
+  sourceSystem: string;
+  companyName: string;
+  contactEmail?: string;
+  dealName: string;
+  amount: number;
+  closeDate: ISODate;
+  stage: "closed_won" | "open" | "lost";
+  productOrService?: string;
+  rawPayload: Record<string, unknown>;
+}
+
+export interface ExternalOrder {
+  externalOrderId: string;
+  sourceSystem: string;
+  customerName: string;
+  customerEmail?: string;
+  orderDate: ISODate;
+  amount: number;
+  productNames: string[];
+  status: "paid" | "pending" | "refunded";
+  rawPayload: Record<string, unknown>;
+}
+
+export interface EntityMatch {
+  matchId: string;
+  externalRecordId: string;
+  externalRecordType: ExternalRecordType;
+  sourceSystem: string;
+  externalName: string;
+  externalTitle: string;
+  externalAmount: number;
+  xeroContactId?: string;
+  xeroContactName?: string;
+  confidence: number;
+  matchStatus: "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "NEEDS_NEW_CONTACT";
+  evidence: string[];
+  sourceRecordIds: string[];
+}
+
+export interface SmartMappingSummary {
+  totalMatches: number;
+  highConfidenceMatches: number;
+  needsReview: number;
+  bestMatch: string | null;
+}
+
+export interface AuditLogEntry {
+  auditId: string;
+  eventType: string;
+  sourceRecordIds: string[];
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
+export type ProductivityAutomationType =
+  | "receipt_to_expense"
+  | "smart_reconciliation"
+  | "duplicate_bill_guard"
+  | "contractor_payment_prep"
+  | "subscription_expense_control";
+
+export interface ProductivityAutomationTask {
+  id: string;
+  type: ProductivityAutomationType;
+  title: string;
+  sourceRecord: string;
+  workflow: string;
+  xeroTarget: string;
+  confidenceScore: number;
+  confidence: RiskLevel;
+  timeSavedMinutes: number;
+  businessImpact: string;
+  messySignals: string[];
+  automationSteps: string[];
+  recommendedAction: string;
+  approvalPlan: ApprovalPlan;
+}
+
+export interface ProductivityAutomationSummary {
+  tasksDetected: number;
+  autoResolvableTasks: number;
+  exceptionTasks: number;
+  estimatedMinutesSaved: number;
+  highestImpactTask: string | null;
+  xeroTouchpoints: string[];
+}
+
+export type IntegrationSourceSystem =
+  | "CRM"
+  | "E-commerce"
+  | "Payments"
+  | "Payroll"
+  | "Spreadsheet"
+  | "SaaS";
+
+export type XeroMappedObject =
+  | "Contact"
+  | "Invoice"
+  | "Bill"
+  | "Payment"
+  | "Item"
+  | "Account"
+  | "TrackingCategory"
+  | "RepeatingInvoice";
+
+export interface AdaptiveFieldMapping {
+  sourceField: string;
+  sourceValue: string;
+  xeroField: string;
+  mappedValue: string;
+  confidence: RiskLevel;
+}
+
+export interface AdaptiveIntegrationCandidate {
+  id: string;
+  sourceSystem: IntegrationSourceSystem;
+  sourceRecordId: string;
+  title: string;
+  rawSignal: string;
+  mappedXeroObject: XeroMappedObject;
+  targetXeroRecord: string;
+  confidenceScore: number;
+  confidence: RiskLevel;
+  expectedValue: number;
+  syncAction: string;
+  fieldMappings: AdaptiveFieldMapping[];
+  missingFields: string[];
+  resilienceNotes: string[];
+  approvalPlan: ApprovalPlan;
+}
+
+export interface AdaptiveIntegrationSummary {
+  candidatesDetected: number;
+  readyToSync: number;
+  needsReview: number;
+  totalMappedValue: number;
+  sourceSystems: IntegrationSourceSystem[];
+  topSyncAction: string | null;
 }
 
 export type OwnerPriorityType =
@@ -290,6 +435,13 @@ export interface DashboardPayload {
   recommendedActions: CashAction[];
   revenueGrowth: RevenueGrowthSummary;
   revenueOpportunities: RevenueOpportunity[];
+  smartMappingSummary: SmartMappingSummary;
+  entityMatches: EntityMatch[];
+  productivitySummary: ProductivityAutomationSummary;
+  productivityTasks: ProductivityAutomationTask[];
+  integrationSummary: AdaptiveIntegrationSummary;
+  integrationCandidates: AdaptiveIntegrationCandidate[];
+  auditLog: AuditLogEntry[];
   ownerPriorities: OwnerPriority[];
   narrative: AgentNarrative;
   xero: XeroApiProvenance;

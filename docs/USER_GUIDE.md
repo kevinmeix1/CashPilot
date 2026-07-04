@@ -1,6 +1,6 @@
 # User Guide
 
-CashFlow Radar is designed for small business owners who want a simple answer to: "What should I do today?"
+CashPilot is designed for small business owners who want a simple answer to: "What should I do today?"
 
 ## Dashboard Overview
 
@@ -29,6 +29,7 @@ Use the checkboxes to include or exclude actions. The forecast and approval tota
 
 The revenue opportunity agent looks for practical growth moves:
 
+- invoicing closed-won deals that are not yet in Xero
 - reactivating high-value dormant customers
 - converting repeated ad-hoc work into retainers
 - recommending adjacent services to existing customers
@@ -36,6 +37,20 @@ The revenue opportunity agent looks for practical growth moves:
 - repackaging weak services into stronger offers
 
 These are intentionally grounded in Xero activity rather than generic sales advice.
+
+## Smart Mapping Review
+
+The Smart Mapping Review panel shows external CRM or e-commerce records that have been matched to Xero contacts.
+
+Each match shows:
+
+- the external source record
+- the proposed Xero contact
+- the confidence score
+- the evidence used for the match
+- review actions for approve, reject, or create new contact
+
+This is where messy real-world names such as `Brightside Studio Ltd` can be safely linked to the Xero contact `Brightside Studios`.
 
 ## Cash-Flow Actions
 
@@ -50,6 +65,10 @@ Each action includes confidence, relationship risk, rationale, and a message dra
 ## Human Approval Queue
 
 The communications panel contains agent-drafted messages. They are drafts only. A business owner should review tone, relationship context, and commercial terms before sending.
+
+## Audit Log
+
+The audit log records recommendation decisions and the source IDs behind them. For example, the Brightside revenue leak keeps both the external CRM ID `CRM-DEAL-6500` and the Xero contact ID `contact-bright`, so the owner can trace why the action was recommended.
 
 ## Xero Connection
 

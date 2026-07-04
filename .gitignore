@@ -3,4 +3,5 @@ dist
 .env
 .env.local
 .cashflow-radar
+.cashpilot
 .DS_Store

@@ -4,12 +4,12 @@ Due: Sunday, 5 July 2026 at 11:00 BST.
 
 ## Submission Details
 
-**Project name:** CashFlow Radar
+**Project name:** CashPilot
 
-**One-liner:** CashFlow Radar turns Xero accounting data into a human-approved revenue and cash-flow action plan.
+**One-liner:** CashPilot turns Xero accounting data into a human-approved revenue and cash-flow action plan.
 
 **What we built:**
-CashFlow Radar is a dark analytics cockpit for small businesses. It uses Xero accounting records to forecast cash position over the next 30-90 days, detect future cash crunches, find revenue opportunities, and queue specific actions for owner approval.
+CashPilot is a dark analytics cockpit for small businesses. It uses Xero accounting records to forecast cash position over the next 30-90 days, detect future cash crunches, find revenue opportunities, and queue specific actions for owner approval.
 
 The product recommends:
 
@@ -26,7 +26,7 @@ The dashboard also includes a forecast intelligence layer that shows which model
 
 ## How The Project Uses The Xero API
 
-CashFlow Radar uses Xero as the accounting system of record. The live path connects through Xero OAuth 2.0 using the official `xero-node` SDK, then maps Xero records into deterministic forecast and revenue-opportunity models.
+CashPilot uses Xero as the accounting system of record. The live path connects through Xero OAuth 2.0 using the official `xero-node` SDK, then maps Xero records into deterministic forecast and revenue-opportunity models.
 
 Xero data powers:
 
@@ -106,7 +106,7 @@ Compatibility/reporting scope:
 - Optional Xero MCP bridge scaffolding via `@xeroapi/xero-mcp-server`
 - Recharts for the before-vs-after forecast chart
 - Deterministic time-series ledger, payment-delay model, Monte Carlo simulation, and cash-driver attribution
-- GitHub repository: https://github.com/kevinmeix1/cashflow-radar
+- GitHub repository: https://github.com/kevinmeix1/cashpilot
 
 ## Track(s)
 
@@ -121,7 +121,7 @@ If the form has one track only, choose the Xero track focused on actively identi
 ## Links To Add Before Submission
 
 **GitHub repo:**
-https://github.com/kevinmeix1/cashflow-radar
+https://github.com/kevinmeix1/cashpilot
 
 **Presentation link:**
 TODO: paste Canva/Google Slides link here.
@@ -131,6 +131,6 @@ TODO: paste Loom/YouTube/Drive link here.
 
 ## Copy-Paste Submission Summary
 
-CashFlow Radar is a Xero-powered revenue and cash-flow action cockpit for small businesses. It connects to Xero via OAuth 2.0 using the official `xero-node` SDK, reads accounting records such as contacts, invoices, payments, bank transactions, repeating invoices, tracking categories, and financial reports, then turns that data into a 30-90 day cash forecast and a ranked approval queue of revenue and cash-flow actions.
+CashPilot is a Xero-powered revenue and cash-flow action cockpit for small businesses. It connects to Xero via OAuth 2.0 using the official `xero-node` SDK, reads accounting records such as contacts, invoices, payments, bank transactions, repeating invoices, tracking categories, and financial reports, then turns that data into a 30-90 day cash forecast and a ranked approval queue of revenue and cash-flow actions.
 
 The system combines a deterministic daily time-series ledger, customer payment-delay model, Monte Carlo cash simulation, and cash-driver attribution layer. It detects future cash crunches, identifies dormant customers, upsell/cross-sell opportunities, subscription conversions, late-payment recovery actions, and underperforming services. Each recommendation includes Xero evidence, forecast impact, an agent-drafted message, and a human approval step before any external action is taken.

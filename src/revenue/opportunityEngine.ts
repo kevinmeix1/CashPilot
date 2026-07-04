@@ -1,10 +1,12 @@
 import { daysBetween } from "../forecast/dateUtils";
-import type { Contact, Invoice, RevenueGrowthSummary, RevenueOpportunity, XeroSnapshot } from "../types/domain";
+import { mockExternalSalesSnapshot } from "../connectors/mockExternalSales";
+import type { Contact, EntityMatch, Invoice, RevenueGrowthSummary, RevenueOpportunity, XeroSnapshot } from "../types/domain";
 
-export function buildRevenueOpportunities(snapshot: XeroSnapshot): RevenueOpportunity[] {
+export function buildRevenueOpportunities(snapshot: XeroSnapshot, entityMatches: EntityMatch[] = []): RevenueOpportunity[] {
   const contacts = new Map(snapshot.contacts.map((contact) => [contact.id, contact]));
   const receivables = snapshot.invoices.filter((invoice) => invoice.type === "ACCREC");
   const opportunities = [
+    ...detectClosedWonNotInvoiced(snapshot, receivables, contacts, entityMatches),
     ...detectDormantCustomers(snapshot, receivables, contacts),
     ...detectSubscriptionConversions(snapshot, receivables, contacts),
     ...detectUpsellCrossSell(snapshot, receivables, contacts),
@@ -24,6 +26,68 @@ export function summariseRevenueGrowth(opportunities: RevenueOpportunity[]): Rev
     opportunitiesDetected: opportunities.length,
     topOpportunityType: opportunities[0]?.type ?? null
   };
+}
+
+function detectClosedWonNotInvoiced(
+  snapshot: XeroSnapshot,
+  invoices: Invoice[],
+  contacts: Map<string, Contact>,
+  entityMatches: EntityMatch[]
+): RevenueOpportunity[] {
+  return mockExternalSalesSnapshot.deals
+    .filter((deal) => deal.stage === "closed_won")
+    .map((deal): RevenueOpportunity | null => {
+      const match = entityMatches.find((candidate) => candidate.externalRecordId === deal.externalDealId);
+      if (!match?.xeroContactId || match.confidence < 0.7) return null;
+      const contact = contacts.get(match.xeroContactId);
+      if (!contact) return null;
+
+      const matchingInvoice = invoices.find((invoice) => {
+        const amountDelta = Math.abs(invoice.total - deal.amount) / Math.max(1, deal.amount);
+        const closeToIssue = Math.abs(daysBetween(deal.closeDate, invoice.issueDate)) <= 21;
+        return invoice.contactId === contact.id && amountDelta <= 0.1 && closeToIssue;
+      });
+      if (matchingInvoice) return null;
+
+      const cashImpact = Math.round(deal.amount * contact.paymentReliability);
+      return {
+        id: `closed-won-${deal.externalDealId}`,
+        type: "closed_won_not_invoiced",
+        title: `Invoice closed-won ${deal.dealName}`,
+        contactId: contact.id,
+        contactName: contact.name,
+        serviceCategory: deal.productOrService,
+        expectedRevenueImpact: deal.amount,
+        expectedCashFlowImpact: cashImpact,
+        confidence: match.confidence >= 0.86 ? "high" : "medium",
+        urgency: "high",
+        recommendedAction:
+          "Create a draft Xero invoice for the closed-won CRM deal before the cash-risk window arrives.",
+        evidence: [
+          `${deal.sourceSystem} deal ${deal.externalDealId} is closed-won for ${money(deal.amount, snapshot.currency)}.`,
+          `Smart Mapper matched ${deal.companyName} to ${contact.name} with ${Math.round(match.confidence * 100)}% confidence.`,
+          "No similar Xero invoice exists for the matched contact, amount, and close-date window."
+        ],
+        modelSignals: [
+          { label: "Source record", value: deal.externalDealId },
+          { label: "Matched Xero contact", value: contact.name },
+          { label: "Expected cash", value: money(cashImpact, snapshot.currency) }
+        ],
+        messageDraft: `Hi ${contact.name}, thanks again for confirming the ${deal.dealName.toLowerCase()}. I have prepared the draft invoice for review and can adjust the details before it is sent.`,
+        approvalPlan: {
+          xeroRecords: [
+            `External deal ${deal.externalDealId}`,
+            `Contact ${contact.name}`,
+            `Draft invoice ${money(deal.amount, snapshot.currency)}`
+          ],
+          approvedExecution:
+            "Create a draft Xero invoice payload and queue the customer follow-up for owner review.",
+          humanControl:
+            "Owner confirms scope, tax/VAT treatment, and invoice timing before any Xero writeback or email send."
+        }
+      };
+    })
+    .filter((opportunity): opportunity is RevenueOpportunity => Boolean(opportunity));
 }
 
 function detectDormantCustomers(

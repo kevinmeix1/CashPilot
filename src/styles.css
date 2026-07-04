@@ -259,6 +259,7 @@ a {
 .mainGrid,
 .pipelineGrid,
 .xeroDepthPanel,
+.bountyPanel,
 .growthPanel,
 .actionsPanel,
 .messagePanel {
@@ -279,6 +280,7 @@ a {
 .narrativePanel,
 .pipelinePanel,
 .xeroDepthPanel,
+.bountyPanel,
 .growthPanel,
 .actionsPanel,
 .messagePanel,
@@ -618,6 +620,7 @@ a {
 .narrativePanel,
 .pipelinePanel,
 .xeroDepthPanel,
+.bountyPanel,
 .growthPanel,
 .actionsPanel,
 .messagePanel {
@@ -783,6 +786,372 @@ a {
 .resourceList span {
   background: #dfe9e6;
   color: #465753;
+}
+
+.bountyPanel {
+  padding: 18px;
+}
+
+.bountySummaryGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.bountySubhead {
+  align-items: center;
+  background: rgba(15, 21, 45, 0.78);
+  border: 1px solid #20284b;
+  border-radius: 8px;
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.bountySubhead strong {
+  color: #f5f7ff;
+  font-size: 15px;
+}
+
+.bountySubhead span {
+  color: #7f87a5;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.automationGrid,
+.integrationGrid,
+.mappingGrid,
+.auditList {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.mappingGrid {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+.automationGrid {
+  grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+}
+
+.integrationGrid {
+  grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+}
+
+.automationCard,
+.integrationCard,
+.mappingCard,
+.auditItem {
+  align-content: start;
+  border-left: 4px solid #6d6cff;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.automationCard.high,
+.integrationCard.high,
+.mappingCard.high {
+  border-left-color: #41d8c5;
+}
+
+.automationCard.medium,
+.integrationCard.medium,
+.mappingCard.medium {
+  border-left-color: #f5b64c;
+}
+
+.automationCard.low,
+.integrationCard.low {
+  border-left-color: #ff4d6d;
+}
+
+.mappingTop,
+.auditItem {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+}
+
+.mappingTop {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.mappingTop strong,
+.auditItem strong {
+  color: #f5f7ff;
+  line-height: 1.25;
+}
+
+.mappingTop span,
+.auditItem span {
+  color: #7f87a5;
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 5px;
+}
+
+.mappingTop em {
+  background: rgba(65, 216, 197, 0.1);
+  border: 1px solid rgba(65, 216, 197, 0.24);
+  border-radius: 999px;
+  color: #41d8c5;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  padding: 6px 8px;
+}
+
+.mappingArrow {
+  background: rgba(5, 8, 23, 0.52);
+  border: 1px solid #20284b;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.mappingArrow span {
+  color: #9aa4c7;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.mappingArrow strong {
+  color: #f5f7ff;
+  font-size: 16px;
+}
+
+.mappingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mappingActions button {
+  background: rgba(109, 108, 255, 0.16);
+  border: 1px solid rgba(109, 108, 255, 0.28);
+  border-radius: 999px;
+  color: #dce4ff;
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.auditList {
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+}
+
+.auditItem {
+  border-left-color: #41d8c5;
+  min-width: 0;
+}
+
+.auditItem p {
+  background: rgba(109, 108, 255, 0.1);
+  border: 1px solid rgba(109, 108, 255, 0.24);
+  border-radius: 8px;
+  color: #dce4ff;
+  font-size: 12px;
+  font-weight: 900;
+  margin: 0;
+  padding: 9px 10px;
+}
+
+.automationTop,
+.integrationTop {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.automationTop .actionSelector,
+.integrationTop .actionSelector {
+  align-items: start;
+}
+
+.automationTop .actionSelector span,
+.integrationTop .actionSelector span {
+  color: #f5f7ff;
+  font-size: 15px;
+  line-height: 1.22;
+}
+
+.automationTop > strong,
+.sourceBadge {
+  background: rgba(65, 216, 197, 0.1);
+  border: 1px solid rgba(65, 216, 197, 0.24);
+  border-radius: 999px;
+  color: #41d8c5;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 8px;
+}
+
+.sourceBadge {
+  background: rgba(109, 108, 255, 0.16);
+  border-color: rgba(109, 108, 255, 0.28);
+  color: #dce4ff;
+}
+
+.automationWorkflow,
+.mappingTarget {
+  background: rgba(5, 8, 23, 0.52);
+  border: 1px solid #20284b;
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+}
+
+.automationWorkflow span,
+.mappingTarget span,
+.mappingTarget em {
+  color: #7f87a5;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.automationWorkflow span {
+  color: #9aa4c7;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.automationWorkflow strong,
+.mappingTarget strong {
+  color: #f5f7ff;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.automationCard p,
+.integrationCard p {
+  color: #9aa4c7;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.messySignalList,
+.resilienceList {
+  display: grid;
+  gap: 7px;
+}
+
+.messySignalList span,
+.resilienceList span,
+.rawSignal {
+  background: rgba(15, 21, 45, 0.88);
+  border: 1px solid #20284b;
+  border-radius: 8px;
+  color: #9aa4c7;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 8px 9px;
+}
+
+.messySignalList span {
+  border-color: rgba(245, 182, 76, 0.28);
+}
+
+.rawSignal {
+  color: #dce4ff;
+}
+
+.automationSteps,
+.fieldMapGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.automationSteps div,
+.fieldMapGrid div {
+  background: rgba(5, 8, 23, 0.42);
+  border: 1px solid #20284b;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+}
+
+.automationSteps div {
+  grid-template-columns: 22px 1fr;
+}
+
+.automationSteps div > span {
+  align-items: center;
+  background: linear-gradient(135deg, #6d6cff, #41d8c5);
+  border-radius: 999px;
+  color: #050817;
+  display: flex;
+  font-size: 11px;
+  font-weight: 900;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.fieldMapGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fieldMapGrid span,
+.fieldMapGrid strong,
+.fieldMapGrid p {
+  display: block;
+}
+
+.fieldMapGrid span {
+  color: #7f87a5;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.fieldMapGrid strong {
+  color: #41d8c5;
+  font-size: 12px;
+  line-height: 1.25;
+  margin-top: 3px;
+}
+
+.fieldMapGrid p {
+  font-size: 12px;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
+.approvalPreview {
+  align-items: start;
+  background: rgba(109, 108, 255, 0.1);
+  border: 1px solid rgba(109, 108, 255, 0.24);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+}
+
+.approvalPreview strong {
+  color: #f5f7ff;
+  font-size: 13px;
+}
+
+.approvalPreview span {
+  color: #9aa4c7;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .endpointGrid,
@@ -1082,6 +1451,9 @@ a {
   .mainGrid,
   .pipelineGrid,
   .xeroDepthGrid,
+  .mappingGrid,
+  .automationGrid,
+  .integrationGrid,
   .opportunityGrid,
   .messageGrid {
     grid-template-columns: 1fr 1fr;
@@ -1091,6 +1463,7 @@ a {
   .approvalSummaryPanel,
   .ownerPanel,
   .xeroDepthPanel,
+  .bountyPanel,
   .growthPanel,
   .actionsPanel,
   .messagePanel {
@@ -1149,6 +1522,10 @@ a {
   .xeroDepthGrid,
   .miniRecordGrid,
   .pillGrid,
+  .mappingGrid,
+  .automationGrid,
+  .integrationGrid,
+  .fieldMapGrid,
   .opportunityGrid,
   .signalList,
   .messageGrid,
@@ -1366,6 +1743,7 @@ body {
 .narrativePanel,
 .pipelinePanel,
 .xeroDepthPanel,
+.bountyPanel,
 .growthPanel,
 .actionsPanel,
 .messagePanel,
@@ -1446,6 +1824,8 @@ body {
 .priorityMetric,
 .assumptionItem,
 .xeroDepthCard,
+.automationCard,
+.integrationCard,
 .agentGrid article,
 .messageCard,
 .stat {
@@ -1470,6 +1850,14 @@ body {
 
 .approvalItem.growth {
   border-left-color: #41d8c5;
+}
+
+.approvalItem.productivity {
+  border-left-color: #f5b64c;
+}
+
+.approvalItem.integration {
+  border-left-color: #8e8cff;
 }
 
 .approvalGroupHeader span,
@@ -1587,6 +1975,15 @@ body {
 }
 
 @media (max-width: 1250px) {
+  .appFrame {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sideRail {
+    min-height: auto;
+    position: static;
+  }
+
   .workspace {
     background:
       radial-gradient(circle at 20% 0%, rgba(109, 108, 255, 0.22), transparent 26rem),
@@ -1628,6 +2025,177 @@ body {
   font-weight: 800;
   line-height: 1.5;
   margin: 14px 0 0;
+}
+
+.forecastSceneBand {
+  margin-top: 16px;
+}
+
+.forecastSceneHeader {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.forecastSceneHeader strong,
+.forecastSceneHeader span {
+  display: block;
+}
+
+.forecastSceneHeader strong {
+  color: #f5f7ff;
+  font-size: 15px;
+}
+
+.forecastSceneHeader span {
+  color: #7f87a5;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.sceneLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.sceneLegend span {
+  align-items: center;
+  background: rgba(15, 21, 45, 0.72);
+  border: 1px solid #20284b;
+  border-radius: 999px;
+  color: #dce4ff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.sceneLegend span::before {
+  border-radius: 999px;
+  content: "";
+  height: 8px;
+  width: 8px;
+}
+
+.sceneLegend .risk::before {
+  background: #ff4d6d;
+  box-shadow: 0 0 14px rgba(255, 77, 109, 0.72);
+}
+
+.sceneLegend .safe::before {
+  background: #41d8c5;
+  box-shadow: 0 0 14px rgba(65, 216, 197, 0.72);
+}
+
+.sceneLegend .threshold::before {
+  background: #f5b64c;
+  box-shadow: 0 0 14px rgba(245, 182, 76, 0.62);
+}
+
+.forecastSceneShell {
+  background:
+    linear-gradient(90deg, rgba(65, 216, 197, 0.1) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(109, 108, 255, 0.11) 1px, transparent 1px),
+    radial-gradient(circle at 20% 15%, rgba(109, 108, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 78% 18%, rgba(65, 216, 197, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(4, 7, 19, 0.96), rgba(7, 12, 31, 0.98));
+  background-size:
+    64px 64px,
+    64px 64px,
+    auto,
+    auto,
+    auto;
+  border-radius: 8px;
+  height: 460px;
+  min-height: 360px;
+  overflow: hidden;
+  position: relative;
+}
+
+.forecastSceneShell::after {
+  background:
+    linear-gradient(90deg, rgba(5, 8, 23, 0.86), transparent 24%, transparent 76%, rgba(5, 8, 23, 0.82)),
+    linear-gradient(180deg, rgba(5, 8, 23, 0.08), transparent 62%, rgba(5, 8, 23, 0.72));
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.forecastSceneCanvas {
+  cursor: grab;
+  display: block;
+  height: 100%;
+  position: relative;
+  touch-action: none;
+  width: 100%;
+  z-index: 1;
+}
+
+.forecastSceneCanvas:active {
+  cursor: grabbing;
+}
+
+.sceneMetricStack {
+  bottom: 16px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  left: 16px;
+  pointer-events: none;
+  position: absolute;
+  right: 16px;
+  z-index: 2;
+}
+
+.sceneMetricStack div {
+  background: rgba(5, 8, 23, 0.72);
+  border: 1px solid rgba(109, 108, 255, 0.24);
+  border-radius: 8px;
+  min-height: 74px;
+  padding: 11px;
+}
+
+.sceneMetricStack span,
+.sceneMetricStack strong {
+  display: block;
+}
+
+.sceneMetricStack span {
+  color: #7f87a5;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sceneMetricStack strong {
+  color: #f5f7ff;
+  font-size: 15px;
+  line-height: 1.25;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+
+.sceneHint {
+  background: rgba(5, 8, 23, 0.68);
+  border: 1px solid rgba(65, 216, 197, 0.22);
+  border-radius: 999px;
+  color: #9aa4c7;
+  font-size: 12px;
+  font-weight: 800;
+  left: 16px;
+  padding: 8px 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 16px;
+  z-index: 2;
 }
 
 .intelGrid {
@@ -1780,11 +2348,32 @@ body {
   .intelGrid {
     grid-template-columns: 1fr;
   }
+
+  .sceneMetricStack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
   .forecastIntelPanel {
     padding: 14px;
+  }
+
+  .forecastSceneHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sceneLegend {
+    justify-content: flex-start;
+  }
+
+  .forecastSceneShell {
+    height: 520px;
+  }
+
+  .sceneMetricStack {
+    grid-template-columns: 1fr;
   }
 
   .subPanelHeader,

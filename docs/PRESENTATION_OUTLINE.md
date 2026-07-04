@@ -4,7 +4,7 @@ Target length: 3-5 minutes.
 
 ## Slide 1: Title
 
-**CashFlow Radar**
+**CashPilot**
 Xero-powered revenue and cash-flow action cockpit.
 
 Talk track:
@@ -27,7 +27,7 @@ Owners still have to decide:
 
 ## Slide 3: Solution
 
-CashFlow Radar uses Xero data to:
+CashPilot uses Xero data to:
 
 - forecast 30-90 day cash position
 - detect future risk windows
@@ -99,7 +99,7 @@ Every action includes:
 
 ## Slide 9: Why It Wins
 
-CashFlow Radar combines:
+CashPilot combines:
 
 - Xero data analysis
 - deterministic forecasting

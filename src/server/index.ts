@@ -3,6 +3,7 @@ import { loadEnvFile } from "node:process";
 import cors from "cors";
 import express from "express";
 import { buildDashboardPayload } from "./dashboard";
+import { getAuditLog, recordApprovalAudit } from "../audit/auditService";
 import {
   buildXeroConsentUrl,
   getXeroIntegrationStatus,
@@ -23,13 +24,19 @@ app.use(express.json());
 app.get("/api/health", (_request, response) => {
   response.json({
     ok: true,
-    service: "CashFlow Radar API",
+    service: "CashPilot API",
     generatedAt: new Date().toISOString()
   });
 });
 
 app.get("/api/integrations/xero/status", async (_request, response) => {
   response.json(await getXeroIntegrationStatus());
+});
+
+app.get("/api/audit-log", (_request, response) => {
+  response.json({
+    auditLog: getAuditLog()
+  });
 });
 
 app.get("/auth/xero/start", async (_request, response) => {
@@ -49,8 +56,8 @@ app.get("/auth/xero/callback", async (request, response) => {
       <title>Xero connected</title>
       <body style="font-family: system-ui; padding: 40px; background: #071314; color: white;">
         <h1>Xero connected</h1>
-        <p>${state.tenantName ?? "Tenant"} is now available to CashFlow Radar.</p>
-        <p><a style="color: #48d6c3;" href="http://127.0.0.1:5173/?source=xero">Return to CashFlow Radar</a></p>
+        <p>${state.tenantName ?? "Tenant"} is now available to CashPilot.</p>
+        <p><a style="color: #48d6c3;" href="http://127.0.0.1:5173/?source=xero">Return to CashPilot</a></p>
       </body>
     `);
   } catch (error) {
@@ -92,22 +99,40 @@ app.post("/api/actions/approve", (request, response) => {
   const revenueOpportunityIds = Array.isArray(request.body?.revenueOpportunityIds)
     ? request.body.revenueOpportunityIds
     : [];
+  const productivityTaskIds = Array.isArray(request.body?.productivityTaskIds) ? request.body.productivityTaskIds : [];
+  const integrationCandidateIds = Array.isArray(request.body?.integrationCandidateIds)
+    ? request.body.integrationCandidateIds
+    : [];
   const legacyActionIds = Array.isArray(request.body?.actionIds) ? request.body.actionIds : [];
-  const actionIds = legacyActionIds.length > 0 ? legacyActionIds : [...cashActionIds, ...revenueOpportunityIds];
+  const actionIds =
+    legacyActionIds.length > 0
+      ? legacyActionIds
+      : [...cashActionIds, ...revenueOpportunityIds, ...productivityTaskIds, ...integrationCandidateIds];
+  const source = request.body?.source === "xero" ? "xero" : "demo";
+  const auditEntries = recordApprovalAudit({
+    source,
+    cashActionIds,
+    revenueOpportunityIds,
+    productivityTaskIds,
+    integrationCandidateIds
+  });
 
   response.json({
     approvedAt: new Date().toISOString(),
     status: "queued-for-human-reviewed-execution",
-    source: request.body?.source === "xero" ? "xero" : "demo",
+    source,
     actionIds,
     counts: {
       cashActions: cashActionIds.length || Math.min(3, actionIds.length),
-      revenueOpportunities: revenueOpportunityIds.length || Math.max(0, actionIds.length - 3)
+      revenueOpportunities: revenueOpportunityIds.length || Math.max(0, actionIds.length - 3),
+      productivityTasks: productivityTaskIds.length,
+      integrationCandidates: integrationCandidateIds.length
     },
-    note: "Approved items are queued for reviewed Xero execution: draft quotes, contact notes, invoice follow-ups, retainer templates, and payment-plan notes."
+    auditLog: auditEntries,
+    note: "Approved items are queued for reviewed Xero execution: draft quotes, contact notes, invoice follow-ups, retainer templates, reconciliation prep, bill coding, and adaptive integration sync drafts."
   });
 });
 
 app.listen(port, "127.0.0.1", () => {
-  console.log(`CashFlow Radar API listening on http://127.0.0.1:${port}`);
+  console.log(`CashPilot API listening on http://127.0.0.1:${port}`);
 });

@@ -566,6 +566,6 @@ async function writeStoredXeroState(state: StoredXeroState) {
 }
 
 function getTokenPath() {
-  const configured = process.env.XERO_TOKEN_PATH ?? ".cashflow-radar/xero-token.json";
+  const configured = process.env.XERO_TOKEN_PATH ?? ".cashpilot/xero-token.json";
   return path.isAbsolute(configured) ? configured : path.join(process.cwd(), configured);
 }

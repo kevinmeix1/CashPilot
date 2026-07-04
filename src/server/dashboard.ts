@@ -1,6 +1,10 @@
 import { generateAgentNarrative } from "../agents/cfoNarrativeAgent";
 import { demoSnapshot } from "../data/demoSnapshot";
 import {
+  buildAdaptiveIntegrationCandidates,
+  summariseAdaptiveIntegrations
+} from "../integrations/adaptive/adaptiveIntegrationEngine";
+import {
   assessDataQuality,
   buildFallbackNarrative,
   buildForecastScenario,
@@ -11,7 +15,10 @@ import type { DashboardPayload, XeroSnapshot } from "../types/domain";
 import { seededXeroProvenance } from "../integrations/xero";
 import { inspectXeroMcpBridge } from "../integrations/xeroMcp";
 import { buildOwnerPriorities } from "../product/ownerPriorities";
+import { buildProductivityAutomations, summariseProductivityAutomations } from "../productivity/automationEngine";
+import { buildEntityMatches, summariseEntityMatches } from "../mapping/smartMappingService";
 import { buildRevenueOpportunities, summariseRevenueGrowth } from "../revenue/opportunityEngine";
+import { getAuditLog } from "../audit/auditService";
 
 export async function buildDashboardPayload(
   snapshot: XeroSnapshot = demoSnapshot,
@@ -26,8 +33,14 @@ export async function buildDashboardPayload(
   const afterActions = buildForecastScenario(snapshot, "After recommended actions", {
     actions: recommendedActions
   });
-  const revenueOpportunities = buildRevenueOpportunities(snapshot);
+  const entityMatches = buildEntityMatches(snapshot);
+  const smartMappingSummary = summariseEntityMatches(entityMatches);
+  const revenueOpportunities = buildRevenueOpportunities(snapshot, entityMatches);
   const revenueGrowth = summariseRevenueGrowth(revenueOpportunities);
+  const productivityTasks = buildProductivityAutomations(snapshot);
+  const productivitySummary = summariseProductivityAutomations(productivityTasks);
+  const integrationCandidates = buildAdaptiveIntegrationCandidates(snapshot);
+  const integrationSummary = summariseAdaptiveIntegrations(integrationCandidates);
   const forecastIntelligence = buildForecastIntelligence(
     snapshot,
     baseline,
@@ -101,6 +114,13 @@ export async function buildDashboardPayload(
     recommendedActions,
     revenueGrowth,
     revenueOpportunities,
+    smartMappingSummary,
+    entityMatches,
+    productivitySummary,
+    productivityTasks,
+    integrationSummary,
+    integrationCandidates,
+    auditLog: getAuditLog(),
     ownerPriorities,
     narrative:
       agentNarrative ??
@@ -109,6 +129,16 @@ export async function buildDashboardPayload(
     agentLayer: {
       mode: agentNarrative ? "openai-agents-sdk" : "deterministic-fallback",
       specialists: [
+        {
+          name: "Productivity Automation Agent",
+          role: "Handles messy receipts, reconciliation, duplicate bills, and contractor payment prep.",
+          status: agentNarrative ? "ran" : "fallback"
+        },
+        {
+          name: "Adaptive Integration Agent",
+          role: "Maps CRM, e-commerce, payments, SaaS, and spreadsheet data into Xero objects.",
+          status: agentNarrative ? "ran" : "fallback"
+        },
         {
           name: "Data Quality Agent",
           role: "Checks whether Xero data is complete enough for forecasting.",
