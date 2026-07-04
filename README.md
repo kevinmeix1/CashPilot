@@ -92,6 +92,9 @@ PORT=8787
 - [User Guide](docs/USER_GUIDE.md)
 - [Developer and Xero Setup](docs/DEVELOPER_GUIDE.md)
 - [Hackathon Submission Notes](docs/HACKATHON_SUBMISSION.md)
+- [Final Submission Checklist](docs/FINAL_SUBMISSION_CHECKLIST.md)
+- [Presentation Outline](docs/PRESENTATION_OUTLINE.md)
+- [Demo Video Script](docs/DEMO_VIDEO_SCRIPT.md)
 
 ## Scripts
 

@@ -4,6 +4,8 @@
 
 CashFlow Radar turns Xero accounting data into a human-approved revenue and cash-flow action plan.
 
+For the final submission form, use [Final Submission Checklist](FINAL_SUBMISSION_CHECKLIST.md). For presentation and recording prep, use [Presentation Outline](PRESENTATION_OUTLINE.md) and [Demo Video Script](DEMO_VIDEO_SCRIPT.md).
+
 ## Problem
 
 Small businesses do not just need to track money. They need to grow it and avoid painful cash timing surprises.
