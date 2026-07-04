@@ -39,6 +39,35 @@ export function getAuditLog(): AuditLogEntry[] {
   return [...auditLog].sort((left, right) => right.createdAt.localeCompare(left.createdAt)).slice(0, 12);
 }
 
+interface MappingReviewAuditInput {
+  matchId: string;
+  decision: "APPROVED" | "REJECTED" | "NEEDS_NEW_CONTACT";
+  sourceRecordIds: string[];
+  source: "demo" | "xero";
+  xeroContactName?: string;
+}
+
+export function recordMappingReviewAudit(input: MappingReviewAuditInput): AuditLogEntry {
+  const createdAt = new Date().toISOString();
+  const entry: AuditLogEntry = {
+    auditId: `audit-mapping-${input.matchId}-${Date.now()}`,
+    eventType: "SMART_MAPPING_REVIEWED",
+    sourceRecordIds: input.sourceRecordIds,
+    payload: {
+      matchId: input.matchId,
+      source: input.source,
+      decision: input.decision,
+      previousStatus: "PENDING_REVIEW",
+      newStatus: input.decision,
+      xeroContactName: input.xeroContactName
+    },
+    createdAt
+  };
+
+  auditLog.unshift(entry);
+  return entry;
+}
+
 export function recordApprovalAudit(input: ApprovalAuditInput): AuditLogEntry[] {
   const createdAt = new Date().toISOString();
   const groups = [

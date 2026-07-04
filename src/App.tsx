@@ -81,26 +81,31 @@ export function App() {
   async function refresh(nextSource = source) {
     setLoading(true);
     setError(null);
-    const [dashboardResponse, xeroResponse] = await Promise.all([
-      fetch(`/api/dashboard?source=${nextSource}`),
-      fetch("/api/integrations/xero/status")
-    ]);
+    try {
+      const [dashboardResponse, xeroResponse] = await Promise.all([
+        fetch(`/api/dashboard?source=${nextSource}`),
+        fetch("/api/integrations/xero/status")
+      ]);
 
-    if (!dashboardResponse.ok) {
-      const result = await dashboardResponse.json();
-      throw new Error(result.error ?? "Unable to load dashboard");
+      if (!dashboardResponse.ok) {
+        const result = await dashboardResponse.json();
+        throw new Error(result.error ?? "Unable to load dashboard");
+      }
+
+      const dashboard = (await dashboardResponse.json()) as DashboardPayload;
+      const xero = (await xeroResponse.json()) as XeroStatus;
+      setPayload(dashboard);
+      setXeroStatus(xero);
+      setSelectedActionIds(dashboard.recommendedActions.map((action) => action.id));
+      setSelectedOpportunityIds(dashboard.revenueOpportunities.map((opportunity) => opportunity.id));
+      setSelectedProductivityTaskIds(dashboard.productivityTasks.map((task) => task.id));
+      setSelectedIntegrationCandidateIds(dashboard.integrationCandidates.map((candidate) => candidate.id));
+      setAuditEntries(dashboard.auditLog);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to load dashboard");
+    } finally {
+      setLoading(false);
     }
-
-    const dashboard = (await dashboardResponse.json()) as DashboardPayload;
-    const xero = (await xeroResponse.json()) as XeroStatus;
-    setPayload(dashboard);
-    setXeroStatus(xero);
-    setSelectedActionIds(dashboard.recommendedActions.map((action) => action.id));
-    setSelectedOpportunityIds(dashboard.revenueOpportunities.map((opportunity) => opportunity.id));
-    setSelectedProductivityTaskIds(dashboard.productivityTasks.map((task) => task.id));
-    setSelectedIntegrationCandidateIds(dashboard.integrationCandidates.map((candidate) => candidate.id));
-    setAuditEntries(dashboard.auditLog);
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -291,7 +296,7 @@ export function App() {
               <span>{xeroStatus.tenantName ?? "Xero connected"}</span>
             </div>
           ) : xeroStatus?.configured ? (
-            <a className="connectLink" href="/auth/xero/start">
+            <a className="connectLink" href={xeroStatus?.connectUrl ?? "/auth/xero/start"}>
               Connect Xero
               <ArrowUpRight size={14} aria-hidden="true" />
             </a>
@@ -335,16 +340,17 @@ export function App() {
               <span>{horizon}d horizon</span>
             </div>
             <div className="commandActions">
-              <button className="ghostButton" type="button" onClick={() => refresh()}>
-                <RefreshCw size={16} aria-hidden="true" />
+              {approvalStatus ? <div className="approvalNote headerApprovalNote">{approvalStatus}</div> : null}
+              <button className="ghostButton" type="button" onClick={() => refresh()} disabled={loading}>
+                <RefreshCw size={16} className={loading ? "spin" : ""} aria-hidden="true" />
                 Refresh
               </button>
               <button
                 className="primaryButton"
-              type="button"
-              onClick={() => approveSelectedActions()}
-              disabled={approvalCount === 0 || approving}
-            >
+                type="button"
+                onClick={() => approveSelectedActions()}
+                disabled={approvalCount === 0 || approving}
+              >
               <Check size={16} aria-hidden="true" />
                 {approving ? "Queuing..." : `Approve ${approvalCount}`}
               </button>
@@ -482,7 +488,12 @@ export function App() {
           </div>
         </section>
 
-        <SmartMappingReviewPanel matches={payload.entityMatches} summary={payload.smartMappingSummary} />
+        <SmartMappingReviewPanel
+          matches={payload.entityMatches}
+          summary={payload.smartMappingSummary}
+          source={source}
+          onAuditEntries={(entries) => setAuditEntries((current) => [...entries, ...current].slice(0, 12))}
+        />
 
         <section className="ownerPanel">
           <div className="panelHeader compact">
@@ -790,11 +801,64 @@ export function App() {
 
 function SmartMappingReviewPanel({
   summary,
-  matches
+  matches,
+  source,
+  onAuditEntries
 }: {
   summary: DashboardPayload["smartMappingSummary"];
   matches: EntityMatch[];
+  source: SourceMode;
+  onAuditEntries: (entries: AuditLogEntry[]) => void;
 }) {
+  const [matchStatuses, setMatchStatuses] = useState<Record<string, EntityMatch["matchStatus"]>>(() =>
+    Object.fromEntries(matches.map((match) => [match.matchId, match.matchStatus]))
+  );
+  const [processingMatchId, setProcessingMatchId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  async function reviewMatch(
+    match: EntityMatch,
+    decision: "APPROVED" | "REJECTED" | "NEEDS_NEW_CONTACT"
+  ) {
+    if (processingMatchId) return;
+    setProcessingMatchId(match.matchId);
+    setFeedback(null);
+
+    try {
+      const response = await fetch("/api/mappings/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matchId: match.matchId,
+          decision,
+          sourceRecordIds: match.sourceRecordIds,
+          xeroContactName: match.xeroContactName,
+          source
+        })
+      });
+
+      if (!response.ok) throw new Error("Unable to record mapping decision");
+
+      const result = await response.json();
+      setMatchStatuses((current) => ({ ...current, [match.matchId]: decision }));
+      if (Array.isArray(result.auditLog)) {
+        onAuditEntries(result.auditLog as AuditLogEntry[]);
+      }
+
+      const label =
+        decision === "APPROVED"
+          ? `Approved match for ${match.externalName}`
+          : decision === "REJECTED"
+            ? `Rejected match for ${match.externalName}`
+            : `Queued new Xero contact for ${match.externalName}`;
+      setFeedback(label);
+    } catch (caught) {
+      setFeedback(caught instanceof Error ? caught.message : "Unable to update mapping");
+    } finally {
+      setProcessingMatchId(null);
+    }
+  }
+
   return (
     <section className="bountyPanel mappingPanel">
       <div className="panelHeader compact">
@@ -812,34 +876,69 @@ function SmartMappingReviewPanel({
         <Stat label="Best match" value={summary.bestMatch ?? "None"} />
       </div>
 
+      {feedback ? <div className="approvalNote mappingFeedback">{feedback}</div> : null}
+
       <div className="mappingGrid">
-        {matches.slice(0, 6).map((match) => (
-          <article key={match.matchId} className={`mappingCard ${match.confidence >= 0.86 ? "high" : "medium"}`}>
-            <div className="mappingTop">
-              <div>
-                <strong>{match.externalName}</strong>
-                <span>
-                  {match.sourceSystem} · {match.externalRecordType} · {money(match.externalAmount)}
-                </span>
+        {matches.slice(0, 6).map((match) => {
+          const status = matchStatuses[match.matchId] ?? match.matchStatus;
+          const isPending = status === "PENDING_REVIEW";
+          const isProcessing = processingMatchId === match.matchId;
+
+          return (
+            <article
+              key={match.matchId}
+              className={`mappingCard ${match.confidence >= 0.86 ? "high" : "medium"} ${isPending ? "" : "reviewed"}`}
+            >
+              <div className="mappingTop">
+                <div>
+                  <strong>{match.externalName}</strong>
+                  <span>
+                    {match.sourceSystem} · {match.externalRecordType} · {money(match.externalAmount)}
+                  </span>
+                </div>
+                <em>{percent(match.confidence)}</em>
               </div>
-              <em>{percent(match.confidence)}</em>
-            </div>
-            <div className="mappingArrow">
-              <span>{match.externalTitle}</span>
-              <strong>{match.xeroContactName ?? "Needs new Xero contact"}</strong>
-            </div>
-            <div className="driverEvidence">
-              {match.evidence.map((item) => (
-                <span key={`${match.matchId}-${item}`}>{item}</span>
-              ))}
-            </div>
-            <div className="mappingActions">
-              <button type="button">Approve match</button>
-              <button type="button">Reject</button>
-              <button type="button">New contact</button>
-            </div>
-          </article>
-        ))}
+              <div className="mappingArrow">
+                <span>{match.externalTitle}</span>
+                <strong>{match.xeroContactName ?? "Needs new Xero contact"}</strong>
+              </div>
+              <div className="driverEvidence">
+                {match.evidence.map((item) => (
+                  <span key={`${match.matchId}-${item}`}>{item}</span>
+                ))}
+              </div>
+              {isPending ? (
+                <div className="mappingActions">
+                  <button
+                    type="button"
+                    disabled={Boolean(processingMatchId)}
+                    onClick={() => reviewMatch(match, "APPROVED")}
+                  >
+                    {isProcessing ? "Saving..." : "Approve match"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(processingMatchId)}
+                    onClick={() => reviewMatch(match, "REJECTED")}
+                  >
+                    Reject
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(processingMatchId)}
+                    onClick={() => reviewMatch(match, "NEEDS_NEW_CONTACT")}
+                  >
+                    New contact
+                  </button>
+                </div>
+              ) : (
+                <div className="mappingStatus">
+                  {status === "APPROVED" ? "Match approved" : status === "REJECTED" ? "Match rejected" : "New contact queued"}
+                </div>
+              )}
+            </article>
+          );
+        })}
       </div>
     </section>
   );

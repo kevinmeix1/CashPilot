@@ -228,7 +228,9 @@ a {
 }
 
 .commandActions {
+  align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -237,6 +239,11 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: #eef7f3;
   padding: 0 14px;
+}
+
+.ghostButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .primaryButton {
@@ -940,8 +947,28 @@ a {
   border: 1px solid rgba(109, 108, 255, 0.28);
   border-radius: 999px;
   color: #dce4ff;
+  cursor: pointer;
   min-height: 32px;
   padding: 0 10px;
+}
+
+.mappingActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.mappingCard.reviewed {
+  opacity: 0.82;
+}
+
+.mappingStatus {
+  color: #9bd8cc;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mappingFeedback {
+  margin-bottom: 12px;
 }
 
 .auditList {
@@ -1380,6 +1407,10 @@ a {
   color: #0f655c;
   font-size: 14px;
   padding: 10px 12px;
+}
+
+.headerApprovalNote {
+  max-width: 320px;
 }
 
 .messageGrid {
