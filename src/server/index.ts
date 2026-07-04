@@ -3,7 +3,7 @@ import { loadEnvFile } from "node:process";
 import cors from "cors";
 import express from "express";
 import { buildDashboardPayload } from "./dashboard";
-import { getAuditLog, recordApprovalAudit } from "../audit/auditService";
+import { getAuditLog, recordApprovalAudit, recordMappingReview, type MappingReviewDecision } from "../audit/auditService";
 import {
   buildXeroConsentUrl,
   getXeroIntegrationStatus,
@@ -92,6 +92,34 @@ app.get("/api/dashboard", async (request, response) => {
     }
     response.status(500).json({ error: error instanceof Error ? error.message : "Unknown dashboard error" });
   }
+});
+
+app.post("/api/mapping/review", (request, response) => {
+  const matchId = typeof request.body?.matchId === "string" ? request.body.matchId : "";
+  const decision = request.body?.decision as MappingReviewDecision | undefined;
+  const sourceRecordIds = Array.isArray(request.body?.sourceRecordIds) ? request.body.sourceRecordIds : [];
+  const externalName = typeof request.body?.externalName === "string" ? request.body.externalName : "External record";
+  const xeroContactName =
+    typeof request.body?.xeroContactName === "string" ? request.body.xeroContactName : undefined;
+
+  if (!matchId || !decision || !["APPROVED", "REJECTED", "NEEDS_NEW_CONTACT"].includes(decision)) {
+    response.status(400).json({ error: "matchId and a valid decision are required." });
+    return;
+  }
+
+  const auditEntry = recordMappingReview({
+    matchId,
+    decision,
+    sourceRecordIds,
+    externalName,
+    xeroContactName
+  });
+
+  response.json({
+    matchId,
+    matchStatus: decision,
+    auditEntry
+  });
 });
 
 app.post("/api/actions/approve", (request, response) => {

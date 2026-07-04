@@ -73,6 +73,9 @@ export function App() {
   const [selectedProductivityTaskIds, setSelectedProductivityTaskIds] = useState<string[]>([]);
   const [selectedIntegrationCandidateIds, setSelectedIntegrationCandidateIds] = useState<string[]>([]);
   const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([]);
+  const [entityMatches, setEntityMatches] = useState<EntityMatch[]>([]);
+  const [mappingReviewStatus, setMappingReviewStatus] = useState<string | null>(null);
+  const [reviewingMatchId, setReviewingMatchId] = useState<string | null>(null);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -99,6 +102,7 @@ export function App() {
     setSelectedOpportunityIds(dashboard.revenueOpportunities.map((opportunity) => opportunity.id));
     setSelectedProductivityTaskIds(dashboard.productivityTasks.map((task) => task.id));
     setSelectedIntegrationCandidateIds(dashboard.integrationCandidates.map((candidate) => candidate.id));
+    setEntityMatches(dashboard.entityMatches);
     setAuditEntries(dashboard.auditLog);
     setLoading(false);
   }
@@ -189,6 +193,53 @@ export function App() {
         ? current.filter((id) => id !== candidateId)
         : [...current, candidateId]
     );
+  }
+
+  async function reviewEntityMatch(
+    match: EntityMatch,
+    decision: EntityMatch["matchStatus"] & ("APPROVED" | "REJECTED" | "NEEDS_NEW_CONTACT")
+  ) {
+    if (reviewingMatchId === match.matchId) return;
+    setReviewingMatchId(match.matchId);
+    setMappingReviewStatus(null);
+
+    try {
+      const response = await fetch("/api/mapping/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matchId: match.matchId,
+          decision,
+          sourceRecordIds: match.sourceRecordIds,
+          externalName: match.externalName,
+          xeroContactName: match.xeroContactName
+        })
+      });
+
+      if (!response.ok) throw new Error("Mapping review request failed");
+
+      const result = await response.json();
+      setEntityMatches((current) =>
+        current.map((entry) =>
+          entry.matchId === match.matchId ? { ...entry, matchStatus: result.matchStatus } : entry
+        )
+      );
+      if (result.auditEntry) {
+        setAuditEntries((current) => [result.auditEntry as AuditLogEntry, ...current].slice(0, 12));
+      }
+
+      const actionLabel =
+        decision === "APPROVED"
+          ? `approved for ${match.xeroContactName ?? "matched contact"}`
+          : decision === "REJECTED"
+            ? "rejected"
+            : "flagged for new Xero contact";
+      setMappingReviewStatus(`${match.externalName} ${actionLabel}.`);
+    } catch (caught) {
+      setMappingReviewStatus(caught instanceof Error ? caught.message : "Unable to save mapping review.");
+    } finally {
+      setReviewingMatchId(null);
+    }
   }
 
   if (loading && !payload) {
@@ -335,9 +386,10 @@ export function App() {
               <span>{horizon}d horizon</span>
             </div>
             <div className="commandActions">
-              <button className="ghostButton" type="button" onClick={() => refresh()}>
-                <RefreshCw size={16} aria-hidden="true" />
-                Refresh
+              {approvalStatus ? <div className="commandApprovalNote">{approvalStatus}</div> : null}
+              <button className="ghostButton" type="button" onClick={() => refresh()} disabled={loading}>
+                <RefreshCw size={16} className={loading ? "spin" : undefined} aria-hidden="true" />
+                {loading ? "Refreshing..." : "Refresh"}
               </button>
               <button
                 className="primaryButton"
@@ -482,7 +534,13 @@ export function App() {
           </div>
         </section>
 
-        <SmartMappingReviewPanel matches={payload.entityMatches} summary={payload.smartMappingSummary} />
+        <SmartMappingReviewPanel
+          matches={entityMatches}
+          summary={payload.smartMappingSummary}
+          reviewStatus={mappingReviewStatus}
+          reviewingMatchId={reviewingMatchId}
+          onReview={reviewEntityMatch}
+        />
 
         <section className="ownerPanel">
           <div className="panelHeader compact">
@@ -790,10 +848,19 @@ export function App() {
 
 function SmartMappingReviewPanel({
   summary,
-  matches
+  matches,
+  reviewStatus,
+  reviewingMatchId,
+  onReview
 }: {
   summary: DashboardPayload["smartMappingSummary"];
   matches: EntityMatch[];
+  reviewStatus: string | null;
+  reviewingMatchId: string | null;
+  onReview: (
+    match: EntityMatch,
+    decision: EntityMatch["matchStatus"] & ("APPROVED" | "REJECTED" | "NEEDS_NEW_CONTACT")
+  ) => void;
 }) {
   return (
     <section className="bountyPanel mappingPanel">
@@ -805,6 +872,8 @@ function SmartMappingReviewPanel({
         <Link2 size={20} aria-hidden="true" />
       </div>
 
+      {reviewStatus ? <div className="mappingReviewNote">{reviewStatus}</div> : null}
+
       <div className="bountySummaryGrid">
         <Stat label="Matches" value={String(summary.totalMatches)} />
         <Stat label="High confidence" value={String(summary.highConfidenceMatches)} />
@@ -814,7 +883,10 @@ function SmartMappingReviewPanel({
 
       <div className="mappingGrid">
         {matches.slice(0, 6).map((match) => (
-          <article key={match.matchId} className={`mappingCard ${match.confidence >= 0.86 ? "high" : "medium"}`}>
+          <article
+            key={match.matchId}
+            className={`mappingCard ${match.confidence >= 0.86 ? "high" : "medium"} ${match.matchStatus.toLowerCase()}`}
+          >
             <div className="mappingTop">
               <div>
                 <strong>{match.externalName}</strong>
@@ -823,6 +895,9 @@ function SmartMappingReviewPanel({
                 </span>
               </div>
               <em>{percent(match.confidence)}</em>
+            </div>
+            <div className="mappingStatus" data-status={match.matchStatus}>
+              {humanizeIdentifier(match.matchStatus)}
             </div>
             <div className="mappingArrow">
               <span>{match.externalTitle}</span>
@@ -834,9 +909,39 @@ function SmartMappingReviewPanel({
               ))}
             </div>
             <div className="mappingActions">
-              <button type="button">Approve match</button>
-              <button type="button">Reject</button>
-              <button type="button">New contact</button>
+              {match.matchStatus === "PENDING_REVIEW" ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={reviewingMatchId === match.matchId}
+                    onClick={() => onReview(match, "APPROVED")}
+                  >
+                    {reviewingMatchId === match.matchId ? "Saving..." : "Approve match"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={reviewingMatchId === match.matchId}
+                    onClick={() => onReview(match, "REJECTED")}
+                  >
+                    Reject
+                  </button>
+                  <button
+                    type="button"
+                    disabled={reviewingMatchId === match.matchId}
+                    onClick={() => onReview(match, "NEEDS_NEW_CONTACT")}
+                  >
+                    New contact
+                  </button>
+                </>
+              ) : (
+                <span className="mappingReviewedLabel">
+                  {match.matchStatus === "APPROVED"
+                    ? `Linked to ${match.xeroContactName ?? "Xero contact"}`
+                    : match.matchStatus === "REJECTED"
+                      ? "Match rejected — manual review required"
+                      : "Queued to create a new Xero contact"}
+                </span>
+              )}
             </div>
           </article>
         ))}

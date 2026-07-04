@@ -8,6 +8,16 @@ interface ApprovalAuditInput {
   integrationCandidateIds: string[];
 }
 
+export type MappingReviewDecision = "APPROVED" | "REJECTED" | "NEEDS_NEW_CONTACT";
+
+interface MappingReviewAuditInput {
+  matchId: string;
+  decision: MappingReviewDecision;
+  sourceRecordIds: string[];
+  externalName: string;
+  xeroContactName?: string;
+}
+
 const auditLog: AuditLogEntry[] = [
   {
     auditId: "audit-seed-mapping-brightside",
@@ -37,6 +47,31 @@ const auditLog: AuditLogEntry[] = [
 
 export function getAuditLog(): AuditLogEntry[] {
   return [...auditLog].sort((left, right) => right.createdAt.localeCompare(left.createdAt)).slice(0, 12);
+}
+
+export function recordMappingReview(input: MappingReviewAuditInput): AuditLogEntry {
+  const entry: AuditLogEntry = {
+    auditId: `audit-smart-mapping-${input.matchId}-${Date.now()}`,
+    eventType: "SMART_MAPPING_REVIEWED",
+    sourceRecordIds: input.sourceRecordIds,
+    payload: {
+      matchId: input.matchId,
+      previousStatus: "PENDING_REVIEW",
+      newStatus: input.decision,
+      externalName: input.externalName,
+      xeroContactName: input.xeroContactName ?? null,
+      explanation:
+        input.decision === "APPROVED"
+          ? `${input.externalName} linked to ${input.xeroContactName ?? "matched Xero contact"}.`
+          : input.decision === "REJECTED"
+            ? `${input.externalName} match rejected for manual review.`
+            : `${input.externalName} flagged to create a new Xero contact.`
+    },
+    createdAt: new Date().toISOString()
+  };
+
+  auditLog.unshift(entry);
+  return entry;
 }
 
 export function recordApprovalAudit(input: ApprovalAuditInput): AuditLogEntry[] {

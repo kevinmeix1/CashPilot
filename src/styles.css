@@ -228,8 +228,11 @@ a {
 }
 
 .commandActions {
+  align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+  justify-content: flex-end;
 }
 
 .ghostButton {
@@ -935,6 +938,62 @@ a {
   gap: 8px;
 }
 
+.mappingReviewNote,
+.commandApprovalNote {
+  background: rgba(65, 216, 197, 0.12);
+  border: 1px solid rgba(65, 216, 197, 0.28);
+  border-radius: 8px;
+  color: #b8fff4;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 10px 12px;
+}
+
+.commandApprovalNote {
+  flex: 1 1 100%;
+  text-align: right;
+}
+
+.mappingStatus {
+  background: rgba(109, 108, 255, 0.12);
+  border: 1px solid rgba(109, 108, 255, 0.24);
+  border-radius: 999px;
+  color: #dce4ff;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 5px 10px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.mappingCard.approved .mappingStatus {
+  background: rgba(65, 216, 197, 0.14);
+  border-color: rgba(65, 216, 197, 0.3);
+  color: #b8fff4;
+}
+
+.mappingCard.rejected .mappingStatus {
+  background: rgba(255, 77, 109, 0.14);
+  border-color: rgba(255, 77, 109, 0.3);
+  color: #ffc4d0;
+}
+
+.mappingCard.needs_new_contact .mappingStatus {
+  background: rgba(245, 182, 76, 0.14);
+  border-color: rgba(245, 182, 76, 0.3);
+  color: #ffe2b0;
+}
+
+.mappingReviewedLabel {
+  color: #9aa4c7;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .mappingActions button {
   background: rgba(109, 108, 255, 0.16);
   border: 1px solid rgba(109, 108, 255, 0.28);
@@ -942,6 +1001,22 @@ a {
   color: #dce4ff;
   min-height: 32px;
   padding: 0 10px;
+}
+
+.mappingActions button:hover:not(:disabled) {
+  background: rgba(109, 108, 255, 0.28);
+  border-color: rgba(109, 108, 255, 0.42);
+}
+
+.mappingActions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.ghostButton:disabled,
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .auditList {
