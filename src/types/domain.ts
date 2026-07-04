@@ -100,11 +100,20 @@ export interface ScenarioSummary {
   crunchProbability: number;
 }
 
+export interface ForecastBandPoint {
+  date: ISODate;
+  pessimisticBalance: number;
+  expectedBalance: number;
+  optimisticBalance: number;
+}
+
 export interface ForecastScenario {
   name: string;
   threshold: number;
   horizonDays: number;
   points: ForecastPoint[];
+  /** Monte Carlo p10/p50/p90 daily balances; absent when the simulation is skipped. */
+  bands?: ForecastBandPoint[];
   summary: ScenarioSummary;
 }
 
@@ -180,6 +189,7 @@ export type RevenueOpportunityType =
   | "upsell_cross_sell"
   | "subscription_conversion"
   | "late_payment_recovery"
+  | "unmatched_external_order"
   | "underperforming_service_fix";
 
 export interface RevenueOpportunity {

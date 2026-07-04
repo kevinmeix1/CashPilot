@@ -18,7 +18,7 @@ import { buildOwnerPriorities } from "../product/ownerPriorities";
 import { buildProductivityAutomations, summariseProductivityAutomations } from "../productivity/automationEngine";
 import { buildEntityMatches, summariseEntityMatches } from "../mapping/smartMappingService";
 import { buildRevenueOpportunities, summariseRevenueGrowth } from "../revenue/opportunityEngine";
-import { getAuditLog } from "../audit/auditService";
+import { getAuditLog, getMappingDecisions } from "../audit/auditService";
 
 export async function buildDashboardPayload(
   snapshot: XeroSnapshot = demoSnapshot,
@@ -33,7 +33,11 @@ export async function buildDashboardPayload(
   const afterActions = buildForecastScenario(snapshot, "After recommended actions", {
     actions: recommendedActions
   });
-  const entityMatches = buildEntityMatches(snapshot);
+  const mappingDecisions = getMappingDecisions();
+  const entityMatches = buildEntityMatches(snapshot).map((match) => {
+    const decision = mappingDecisions[match.matchId];
+    return decision ? { ...match, matchStatus: decision } : match;
+  });
   const smartMappingSummary = summariseEntityMatches(entityMatches);
   const revenueOpportunities = buildRevenueOpportunities(snapshot, entityMatches);
   const revenueGrowth = summariseRevenueGrowth(revenueOpportunities);

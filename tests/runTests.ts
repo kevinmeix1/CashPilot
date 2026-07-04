@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { recordApprovalAudit } from "../src/audit/auditService";
+import {
+  getMappingDecisions,
+  recordApprovalAudit,
+  recordMappingDecision
+} from "../src/audit/auditService";
 import { demoSnapshot } from "../src/data/demoSnapshot";
 import { buildForecastScenario, recommendCashActions } from "../src/forecast/forecastEngine";
 import {
@@ -50,6 +54,40 @@ function testForecastAndActions() {
   assert.ok(baseline.summary.crunchProbability <= 100);
   assert.ok(actions.length >= 3);
   assert.ok(afterActions.summary.minimumCashBalance >= baseline.summary.minimumCashBalance);
+  assert.ok(
+    afterActions.summary.crunchProbability <= baseline.summary.crunchProbability,
+    "Recommended actions should not increase crunch probability"
+  );
+}
+
+function testForecastBands() {
+  const baseline = buildForecastScenario(demoSnapshot, "Band test", {
+    horizonDays: 30,
+    monteCarloRuns: 60
+  });
+
+  assert.ok(baseline.bands, "Monte Carlo runs should produce forecast bands");
+  assert.equal(baseline.bands.length, 30);
+  for (const band of baseline.bands) {
+    assert.ok(band.pessimisticBalance <= band.expectedBalance, "p10 must not exceed p50");
+    assert.ok(band.expectedBalance <= band.optimisticBalance, "p50 must not exceed p90");
+  }
+
+  const skipped = buildForecastScenario(demoSnapshot, "No simulation", {
+    horizonDays: 30,
+    monteCarloRuns: 0
+  });
+  assert.equal(skipped.bands, undefined);
+}
+
+function testUnmatchedExternalOrderDetection() {
+  const matches = buildEntityMatches(demoSnapshot);
+  const opportunities = buildRevenueOpportunities(demoSnapshot, matches);
+  const unmatched = opportunities.find((opportunity) => opportunity.type === "unmatched_external_order");
+
+  assert.ok(unmatched, "A paid external order without a Xero contact match should surface as an opportunity");
+  assert.equal(unmatched.expectedRevenueImpact, 720);
+  assert.ok(unmatched.modelSignals.some((signal) => signal.value === "SHOPIFY-ORDER-1120"));
 }
 
 function testApprovalAudit() {
@@ -68,9 +106,60 @@ function testApprovalAudit() {
   assert.equal(entries[0].payload.newStatus, "APPROVED");
 }
 
+function testRejectionAndEditAudit() {
+  const rejected = recordApprovalAudit({
+    source: "demo",
+    decision: "REJECTED",
+    cashActionIds: ["chase-inv-acme-4012"],
+    revenueOpportunityIds: [],
+    productivityTaskIds: [],
+    integrationCandidateIds: []
+  });
+
+  assert.equal(rejected.length, 1);
+  assert.equal(rejected[0].eventType, "CASH_ACTION_REJECTED");
+  assert.equal(rejected[0].payload.newStatus, "REJECTED");
+  assert.equal(rejected[0].payload.reviewedExecution, false);
+
+  const edited = recordApprovalAudit({
+    source: "demo",
+    decision: "APPROVED",
+    editedMessages: { "closed-won-CRM-DEAL-6500": "Hi Brightside, updated draft." },
+    cashActionIds: [],
+    revenueOpportunityIds: ["closed-won-CRM-DEAL-6500"],
+    productivityTaskIds: [],
+    integrationCandidateIds: []
+  });
+
+  assert.equal(edited[0].eventType, "REVENUE_RECOMMENDATION_EDITED");
+  assert.equal(edited[0].payload.newStatus, "EDITED");
+  assert.equal(edited[0].payload.editedMessage, "Hi Brightside, updated draft.");
+}
+
+function testMappingDecisionAudit() {
+  const entry = recordMappingDecision({
+    matchId: "match-crm-deal-6500",
+    decision: "APPROVED",
+    externalRecordId: "CRM-DEAL-6500",
+    xeroContactId: "contact-bright",
+    xeroContactName: "Brightside Studios",
+    confidence: 0.98
+  });
+
+  assert.equal(entry.eventType, "SMART_MAPPING_APPROVED");
+  assert.deepEqual(entry.sourceRecordIds, ["CRM-DEAL-6500", "contact-bright"]);
+  assert.equal(entry.payload.previousStatus, "PENDING_REVIEW");
+  assert.equal(entry.payload.newStatus, "APPROVED");
+  assert.equal(getMappingDecisions()["match-crm-deal-6500"], "APPROVED");
+}
+
 testSmartMapping();
 testRevenueLeakDetection();
 testForecastAndActions();
+testForecastBands();
+testUnmatchedExternalOrderDetection();
 testApprovalAudit();
+testRejectionAndEditAudit();
+testMappingDecisionAudit();
 
 console.log("CashPilot core tests passed.");

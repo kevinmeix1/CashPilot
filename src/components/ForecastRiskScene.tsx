@@ -94,7 +94,7 @@ export function ForecastRiskScene({ baseline, afterActions, threshold, drivers }
             <circle className="safePoint" cx={view.afterMinimumPoint.x} cy={view.afterMinimumPoint.y} r="5" />
 
             <text className="bandLabel" x={CHART_PAD_X + 18} y={CHART_PAD_Y + 34}>
-              payment timing simulation range
+              {view.bandLabel}
             </text>
             {view.yTicks.map((tick) => (
               <text className="cashTickLabel" key={tick.key} x={CHART_PAD_X - 10} y={(tick.y ?? 0) + 4}>
@@ -178,6 +178,11 @@ function buildRiskView(
   const baselinePoints = baseline.points.slice(0, DAY_COUNT);
   const afterPoints = afterActions.points.slice(0, baselinePoints.length);
   const daysShown = baselinePoints.length;
+  const simulatedBands = (baseline.bands ?? []).slice(0, daysShown);
+  const hasSimulatedBands = simulatedBands.length === daysShown && daysShown > 0;
+
+  // Prefer Monte Carlo p10/p90 percentiles; fall back to a driver-scaled band
+  // when the simulation was skipped (e.g. monteCarloRuns: 0).
   const paymentTimingImpact =
     drivers.find((driver) => driver.id === "driver-payment-delay")?.impactAmount ??
     Math.max(1200, threshold * 0.28);
@@ -185,11 +190,15 @@ function buildRiskView(
 
   const lowerBand = baselinePoints.map((point, index) => ({
     ...point,
-    closingBalance: point.closingBalance - bandWidth * Math.sqrt((index + 1) / Math.max(1, daysShown))
+    closingBalance: hasSimulatedBands
+      ? simulatedBands[index].pessimisticBalance
+      : point.closingBalance - bandWidth * Math.sqrt((index + 1) / Math.max(1, daysShown))
   }));
   const upperBand = baselinePoints.map((point, index) => ({
     ...point,
-    closingBalance: point.closingBalance + bandWidth * 0.28 * Math.sqrt((index + 1) / Math.max(1, daysShown))
+    closingBalance: hasSimulatedBands
+      ? simulatedBands[index].optimisticBalance
+      : point.closingBalance + bandWidth * 0.28 * Math.sqrt((index + 1) / Math.max(1, daysShown))
   }));
   const allBalances = [
     ...baselinePoints,
@@ -233,6 +242,9 @@ function buildRiskView(
 
   return {
     daysShown,
+    bandLabel: hasSimulatedBands
+      ? "Monte Carlo p10-p90 payment timing range"
+      : "payment timing sensitivity range",
     baselinePath: linePath(baselineChart),
     afterPath: linePath(afterChart),
     bandPath: areaBetweenPath(upperChart, lowerChart),

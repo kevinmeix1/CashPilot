@@ -7,6 +7,7 @@ export function buildRevenueOpportunities(snapshot: XeroSnapshot, entityMatches:
   const receivables = snapshot.invoices.filter((invoice) => invoice.type === "ACCREC");
   const opportunities = [
     ...detectClosedWonNotInvoiced(snapshot, receivables, contacts, entityMatches),
+    ...detectUnmatchedExternalOrders(snapshot, receivables, entityMatches),
     ...detectDormantCustomers(snapshot, receivables, contacts),
     ...detectSubscriptionConversions(snapshot, receivables, contacts),
     ...detectUpsellCrossSell(snapshot, receivables, contacts),
@@ -14,9 +15,7 @@ export function buildRevenueOpportunities(snapshot: XeroSnapshot, entityMatches:
     ...detectUnderperformingServices(snapshot, receivables)
   ];
 
-  return dedupe(opportunities)
-    .sort((left, right) => score(right) - score(left))
-    .slice(0, 5);
+  return rankWithTypeDiversity(dedupe(opportunities), 7);
 }
 
 export function summariseRevenueGrowth(opportunities: RevenueOpportunity[]): RevenueGrowthSummary {
@@ -84,6 +83,68 @@ function detectClosedWonNotInvoiced(
             "Create a draft Xero invoice payload and queue the customer follow-up for owner review.",
           humanControl:
             "Owner confirms scope, tax/VAT treatment, and invoice timing before any Xero writeback or email send."
+        }
+      };
+    })
+    .filter((opportunity): opportunity is RevenueOpportunity => Boolean(opportunity));
+}
+
+function detectUnmatchedExternalOrders(
+  snapshot: XeroSnapshot,
+  invoices: Invoice[],
+  entityMatches: EntityMatch[]
+): RevenueOpportunity[] {
+  return mockExternalSalesSnapshot.orders
+    .filter((order) => order.status === "paid")
+    .map((order): RevenueOpportunity | null => {
+      const match = entityMatches.find((candidate) => candidate.externalRecordId === order.externalOrderId);
+      const isUnmatchedContact = !match?.xeroContactId || match.matchStatus === "NEEDS_NEW_CONTACT";
+
+      const matchingInvoice = match?.xeroContactId
+        ? invoices.find((invoice) => {
+            const amountDelta = Math.abs(invoice.total - order.amount) / Math.max(1, order.amount);
+            const closeToOrder = Math.abs(daysBetween(order.orderDate, invoice.issueDate)) <= 14;
+            return invoice.contactId === match.xeroContactId && amountDelta <= 0.1 && closeToOrder;
+          })
+        : undefined;
+
+      if (!isUnmatchedContact && matchingInvoice) return null;
+      if (!isUnmatchedContact) return null;
+
+      return {
+        id: `unmatched-order-${order.externalOrderId.toLowerCase()}`,
+        type: "unmatched_external_order",
+        title: `Reconcile unmatched ${order.sourceSystem} order`,
+        serviceCategory: order.productNames[0],
+        expectedRevenueImpact: order.amount,
+        expectedCashFlowImpact: order.amount,
+        confidence: "medium",
+        urgency: "high",
+        recommendedAction:
+          "Money was collected outside Xero. Create the contact and sales invoice so the payment can be reconciled and reported.",
+        evidence: [
+          `${order.sourceSystem} order ${order.externalOrderId} is paid (${money(order.amount, snapshot.currency)}) with no confident Xero contact match.`,
+          `Buyer "${order.customerName}"${order.customerEmail ? ` (${order.customerEmail})` : " has no email on record and"} could not be matched above the 58% confidence floor.`,
+          "Unrecorded sales understate revenue and break bank reconciliation until they are booked."
+        ],
+        modelSignals: [
+          { label: "Source record", value: order.externalOrderId },
+          { label: "Order value", value: money(order.amount, snapshot.currency) },
+          { label: "Match status", value: match?.matchStatus ?? "NO_CANDIDATE" }
+        ],
+        messageDraft: `Internal action: create a Xero contact for "${order.customerName}" and raise a ${money(
+          order.amount,
+          snapshot.currency
+        )} sales invoice matching ${order.externalOrderId}, then reconcile the incoming payment against it.`,
+        approvalPlan: {
+          xeroRecords: [
+            `External order ${order.externalOrderId}`,
+            `Order value ${money(order.amount, snapshot.currency)}`,
+            "New Xero contact + invoice draft"
+          ],
+          approvedExecution:
+            "Prepare a new contact draft and a matching sales invoice so the external payment can be reconciled in Xero.",
+          humanControl: "Owner confirms the buyer identity and tax treatment before any record is created."
         }
       };
     })
@@ -411,6 +472,29 @@ function score(opportunity: RevenueOpportunity) {
   const urgencyBoost = opportunity.urgency === "high" ? 1.25 : opportunity.urgency === "medium" ? 1.1 : 1;
   const confidenceBoost = opportunity.confidence === "high" ? 1.18 : opportunity.confidence === "medium" ? 1 : 0.82;
   return (opportunity.expectedRevenueImpact + opportunity.expectedCashFlowImpact * 0.7) * urgencyBoost * confidenceBoost;
+}
+
+/**
+ * Prefer one opportunity per detector type before filling remaining slots by
+ * raw score, so the demo shows the breadth of revenue-leak detection instead
+ * of several variants of the same finding.
+ */
+function rankWithTypeDiversity(opportunities: RevenueOpportunity[], limit: number) {
+  const ranked = [...opportunities].sort((left, right) => score(right) - score(left));
+  const primary: RevenueOpportunity[] = [];
+  const overflow: RevenueOpportunity[] = [];
+  const seenTypes = new Set<string>();
+
+  for (const opportunity of ranked) {
+    if (seenTypes.has(opportunity.type)) {
+      overflow.push(opportunity);
+    } else {
+      seenTypes.add(opportunity.type);
+      primary.push(opportunity);
+    }
+  }
+
+  return [...primary, ...overflow].slice(0, limit).sort((left, right) => score(right) - score(left));
 }
 
 function dedupe(opportunities: RevenueOpportunity[]) {

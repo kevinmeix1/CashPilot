@@ -3,7 +3,8 @@ import { loadEnvFile } from "node:process";
 import cors from "cors";
 import express from "express";
 import { buildDashboardPayload } from "./dashboard";
-import { getAuditLog, recordApprovalAudit } from "../audit/auditService";
+import { getAuditLog, recordApprovalAudit, recordMappingDecision } from "../audit/auditService";
+import type { ApprovalDecision } from "../audit/auditService";
 import {
   buildXeroConsentUrl,
   getXeroIntegrationStatus,
@@ -94,42 +95,82 @@ app.get("/api/dashboard", async (request, response) => {
   }
 });
 
-app.post("/api/actions/approve", (request, response) => {
-  const cashActionIds = Array.isArray(request.body?.cashActionIds) ? request.body.cashActionIds : [];
-  const revenueOpportunityIds = Array.isArray(request.body?.revenueOpportunityIds)
-    ? request.body.revenueOpportunityIds
-    : [];
-  const productivityTaskIds = Array.isArray(request.body?.productivityTaskIds) ? request.body.productivityTaskIds : [];
-  const integrationCandidateIds = Array.isArray(request.body?.integrationCandidateIds)
-    ? request.body.integrationCandidateIds
-    : [];
-  const legacyActionIds = Array.isArray(request.body?.actionIds) ? request.body.actionIds : [];
-  const actionIds =
-    legacyActionIds.length > 0
-      ? legacyActionIds
-      : [...cashActionIds, ...revenueOpportunityIds, ...productivityTaskIds, ...integrationCandidateIds];
-  const source = request.body?.source === "xero" ? "xero" : "demo";
-  const auditEntries = recordApprovalAudit({
-    source,
-    cashActionIds,
-    revenueOpportunityIds,
-    productivityTaskIds,
-    integrationCandidateIds
+function handleActionDecision(decision: ApprovalDecision) {
+  return (request: express.Request, response: express.Response) => {
+    const cashActionIds = Array.isArray(request.body?.cashActionIds) ? request.body.cashActionIds : [];
+    const revenueOpportunityIds = Array.isArray(request.body?.revenueOpportunityIds)
+      ? request.body.revenueOpportunityIds
+      : [];
+    const productivityTaskIds = Array.isArray(request.body?.productivityTaskIds) ? request.body.productivityTaskIds : [];
+    const integrationCandidateIds = Array.isArray(request.body?.integrationCandidateIds)
+      ? request.body.integrationCandidateIds
+      : [];
+    const editedMessages =
+      request.body?.editedMessages && typeof request.body.editedMessages === "object"
+        ? (request.body.editedMessages as Record<string, string>)
+        : undefined;
+    const actionIds = [...cashActionIds, ...revenueOpportunityIds, ...productivityTaskIds, ...integrationCandidateIds];
+    const source = request.body?.source === "xero" ? "xero" : "demo";
+    const auditEntries = recordApprovalAudit({
+      source,
+      decision,
+      editedMessages,
+      cashActionIds,
+      revenueOpportunityIds,
+      productivityTaskIds,
+      integrationCandidateIds
+    });
+
+    response.json({
+      decidedAt: new Date().toISOString(),
+      decision,
+      status: decision === "REJECTED" ? "rejected-and-logged" : "queued-for-human-reviewed-execution",
+      source,
+      actionIds,
+      counts: {
+        cashActions: cashActionIds.length,
+        revenueOpportunities: revenueOpportunityIds.length,
+        productivityTasks: productivityTaskIds.length,
+        integrationCandidates: integrationCandidateIds.length
+      },
+      auditLog: auditEntries,
+      note:
+        decision === "REJECTED"
+          ? "Rejected items are logged with source records and removed from the pending queue. No Xero writeback occurs."
+          : "Approved items are queued for reviewed Xero execution: draft quotes, contact notes, invoice follow-ups, retainer templates, reconciliation prep, bill coding, and adaptive integration sync drafts."
+    });
+  };
+}
+
+app.post("/api/actions/approve", handleActionDecision("APPROVED"));
+app.post("/api/actions/reject", handleActionDecision("REJECTED"));
+
+app.post("/api/mappings/:matchId/decision", (request, response) => {
+  const decision = request.body?.decision;
+  if (decision !== "APPROVED" && decision !== "REJECTED" && decision !== "NEEDS_NEW_CONTACT") {
+    response.status(400).json({ error: "decision must be APPROVED, REJECTED, or NEEDS_NEW_CONTACT" });
+    return;
+  }
+
+  const entry = recordMappingDecision({
+    matchId: request.params.matchId,
+    decision,
+    externalRecordId: String(request.body?.externalRecordId ?? request.params.matchId),
+    xeroContactId: typeof request.body?.xeroContactId === "string" ? request.body.xeroContactId : undefined,
+    xeroContactName: typeof request.body?.xeroContactName === "string" ? request.body.xeroContactName : undefined,
+    confidence: typeof request.body?.confidence === "number" ? request.body.confidence : undefined
   });
 
   response.json({
-    approvedAt: new Date().toISOString(),
-    status: "queued-for-human-reviewed-execution",
-    source,
-    actionIds,
-    counts: {
-      cashActions: cashActionIds.length || Math.min(3, actionIds.length),
-      revenueOpportunities: revenueOpportunityIds.length || Math.max(0, actionIds.length - 3),
-      productivityTasks: productivityTaskIds.length,
-      integrationCandidates: integrationCandidateIds.length
-    },
-    auditLog: auditEntries,
-    note: "Approved items are queued for reviewed Xero execution: draft quotes, contact notes, invoice follow-ups, retainer templates, reconciliation prep, bill coding, and adaptive integration sync drafts."
+    matchId: request.params.matchId,
+    matchStatus: decision,
+    auditEntry: entry,
+    note:
+      decision === "APPROVED"
+        ? "Match confirmed. The external record is now linked to the Xero contact for revenue-leak detection."
+        : decision === "REJECTED"
+          ? "Match rejected and logged. The external record returns to the unmatched pool."
+          : "A new Xero contact draft will be prepared for owner review before anything is created."
   });
 });
 

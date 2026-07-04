@@ -75,6 +75,8 @@ export function App() {
   const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([]);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
+  const [mappingStatuses, setMappingStatuses] = useState<Record<string, EntityMatch["matchStatus"]>>({});
+  const [editedMessages, setEditedMessages] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,6 +102,10 @@ export function App() {
     setSelectedProductivityTaskIds(dashboard.productivityTasks.map((task) => task.id));
     setSelectedIntegrationCandidateIds(dashboard.integrationCandidates.map((candidate) => candidate.id));
     setAuditEntries(dashboard.auditLog);
+    setMappingStatuses(
+      Object.fromEntries(dashboard.entityMatches.map((match) => [match.matchId, match.matchStatus]))
+    );
+    setEditedMessages({});
     setLoading(false);
   }
 
@@ -127,12 +133,17 @@ export function App() {
     await refresh(nextSource);
   }
 
-  async function approveSelectedActions() {
+  async function submitDecision(decision: "approve" | "reject") {
     if (approvalCount === 0 || approving) return;
     setApproving(true);
-    setApprovalStatus("Submitting approval...");
+    setApprovalStatus(decision === "approve" ? "Submitting approval..." : "Submitting rejection...");
     try {
-      const response = await fetch("/api/actions/approve", {
+      const selectedEdits = Object.fromEntries(
+        Object.entries(editedMessages).filter(
+          ([id]) => selectedActionIds.includes(id) || selectedOpportunityIds.includes(id)
+        )
+      );
+      const response = await fetch(`/api/actions/${decision}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -140,6 +151,7 @@ export function App() {
           revenueOpportunityIds: selectedOpportunityIds,
           productivityTaskIds: selectedProductivityTaskIds,
           integrationCandidateIds: selectedIntegrationCandidateIds,
+          editedMessages: decision === "approve" ? selectedEdits : undefined,
           source
         })
       });
@@ -149,13 +161,46 @@ export function App() {
       const result = await response.json();
       const newAuditEntries = Array.isArray(result.auditLog) ? (result.auditLog as AuditLogEntry[]) : [];
       setAuditEntries((current) => [...newAuditEntries, ...current].slice(0, 12));
+      const editedCount = decision === "approve" ? Object.keys(selectedEdits).length : 0;
       setApprovalStatus(
-        `${result.counts.cashActions} cash-flow, ${result.counts.revenueOpportunities} growth, ${result.counts.productivityTasks} productivity, and ${result.counts.integrationCandidates} integration action(s) queued.`
+        `${result.counts.cashActions} cash-flow, ${result.counts.revenueOpportunities} growth, ${result.counts.productivityTasks} productivity, and ${result.counts.integrationCandidates} integration action(s) ${
+          decision === "approve" ? "queued" : "rejected and logged"
+        }${editedCount > 0 ? ` (${editedCount} with edited drafts)` : ""}.`
       );
+      if (decision === "reject") {
+        setSelectedActionIds([]);
+        setSelectedOpportunityIds([]);
+        setSelectedProductivityTaskIds([]);
+        setSelectedIntegrationCandidateIds([]);
+      }
     } catch (caught) {
       setApprovalStatus(caught instanceof Error ? caught.message : "Unable to queue selected actions.");
     } finally {
       setApproving(false);
+    }
+  }
+
+  async function decideMapping(match: EntityMatch, decision: "APPROVED" | "REJECTED" | "NEEDS_NEW_CONTACT") {
+    try {
+      const response = await fetch(`/api/mappings/${match.matchId}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision,
+          externalRecordId: match.externalRecordId,
+          xeroContactId: match.xeroContactId,
+          xeroContactName: match.xeroContactName,
+          confidence: match.confidence
+        })
+      });
+      if (!response.ok) throw new Error("Mapping decision request failed");
+      const result = await response.json();
+      setMappingStatuses((current) => ({ ...current, [match.matchId]: decision }));
+      if (result.auditEntry) {
+        setAuditEntries((current) => [result.auditEntry as AuditLogEntry, ...current].slice(0, 12));
+      }
+    } catch (caught) {
+      setApprovalStatus(caught instanceof Error ? caught.message : "Unable to record mapping decision.");
     }
   }
 
@@ -340,12 +385,21 @@ export function App() {
                 Refresh
               </button>
               <button
+                className="ghostButton rejectButton"
+                type="button"
+                onClick={() => submitDecision("reject")}
+                disabled={approvalCount === 0 || approving}
+              >
+                <AlertTriangle size={16} aria-hidden="true" />
+                Reject {approvalCount}
+              </button>
+              <button
                 className="primaryButton"
-              type="button"
-              onClick={() => approveSelectedActions()}
-              disabled={approvalCount === 0 || approving}
-            >
-              <Check size={16} aria-hidden="true" />
+                type="button"
+                onClick={() => submitDecision("approve")}
+                disabled={approvalCount === 0 || approving}
+              >
+                <Check size={16} aria-hidden="true" />
                 {approving ? "Queuing..." : `Approve ${approvalCount}`}
               </button>
             </div>
@@ -482,7 +536,12 @@ export function App() {
           </div>
         </section>
 
-        <SmartMappingReviewPanel matches={payload.entityMatches} summary={payload.smartMappingSummary} />
+        <SmartMappingReviewPanel
+          matches={payload.entityMatches}
+          statuses={mappingStatuses}
+          summary={payload.smartMappingSummary}
+          onDecide={decideMapping}
+        />
 
         <section className="ownerPanel">
           <div className="panelHeader compact">
@@ -756,28 +815,41 @@ export function App() {
           <div className="panelHeader compact">
             <div>
               <span className="sectionLabel">Human approval queue</span>
-              <h2>Agent-drafted communications</h2>
+              <h2>Agent-drafted communications — edit before approving</h2>
             </div>
             <Mail size={20} aria-hidden="true" />
           </div>
           <div className="messageGrid">
             {payload.revenueOpportunities.slice(0, 3).map((opportunity) => (
-              <article key={opportunity.id} className="messageCard growthMessage">
-                <div className="messageMeta">
-                  <span>{opportunity.contactName ?? opportunity.serviceCategory ?? "Internal growth action"}</span>
-                  <span>{opportunity.type.replaceAll("_", " ")}</span>
-                </div>
-                <p>{opportunity.messageDraft}</p>
-              </article>
+              <EditableMessageCard
+                key={opportunity.id}
+                className="growthMessage"
+                draft={editedMessages[opportunity.id] ?? opportunity.messageDraft}
+                edited={editedMessages[opportunity.id] !== undefined}
+                metaLeft={opportunity.contactName ?? opportunity.serviceCategory ?? "Internal growth action"}
+                metaRight={opportunity.type.replaceAll("_", " ")}
+                onEdit={(value) =>
+                  setEditedMessages((current) =>
+                    value === opportunity.messageDraft
+                      ? removeKey(current, opportunity.id)
+                      : { ...current, [opportunity.id]: value }
+                  )
+                }
+              />
             ))}
             {payload.recommendedActions.map((action) => (
-              <article key={action.id} className="messageCard">
-                <div className="messageMeta">
-                  <span>{action.contactName}</span>
-                  <span>{action.invoiceNumber}</span>
-                </div>
-                <p>{action.messageDraft}</p>
-              </article>
+              <EditableMessageCard
+                key={action.id}
+                draft={editedMessages[action.id] ?? action.messageDraft}
+                edited={editedMessages[action.id] !== undefined}
+                metaLeft={action.contactName}
+                metaRight={action.invoiceNumber}
+                onEdit={(value) =>
+                  setEditedMessages((current) =>
+                    value === action.messageDraft ? removeKey(current, action.id) : { ...current, [action.id]: value }
+                  )
+                }
+              />
             ))}
           </div>
         </section>
@@ -790,11 +862,17 @@ export function App() {
 
 function SmartMappingReviewPanel({
   summary,
-  matches
+  matches,
+  statuses,
+  onDecide
 }: {
   summary: DashboardPayload["smartMappingSummary"];
   matches: EntityMatch[];
+  statuses: Record<string, EntityMatch["matchStatus"]>;
+  onDecide: (match: EntityMatch, decision: "APPROVED" | "REJECTED" | "NEEDS_NEW_CONTACT") => void;
 }) {
+  const pendingReview = matches.filter((match) => (statuses[match.matchId] ?? match.matchStatus) === "PENDING_REVIEW").length;
+
   return (
     <section className="bountyPanel mappingPanel">
       <div className="panelHeader compact">
@@ -808,38 +886,60 @@ function SmartMappingReviewPanel({
       <div className="bountySummaryGrid">
         <Stat label="Matches" value={String(summary.totalMatches)} />
         <Stat label="High confidence" value={String(summary.highConfidenceMatches)} />
-        <Stat label="Needs review" value={String(summary.needsReview)} />
+        <Stat label="Needs review" value={String(pendingReview)} />
         <Stat label="Best match" value={summary.bestMatch ?? "None"} />
       </div>
 
       <div className="mappingGrid">
-        {matches.slice(0, 6).map((match) => (
-          <article key={match.matchId} className={`mappingCard ${match.confidence >= 0.86 ? "high" : "medium"}`}>
-            <div className="mappingTop">
-              <div>
-                <strong>{match.externalName}</strong>
-                <span>
-                  {match.sourceSystem} · {match.externalRecordType} · {money(match.externalAmount)}
-                </span>
+        {matches.slice(0, 6).map((match) => {
+          const status = statuses[match.matchId] ?? match.matchStatus;
+          return (
+            <article key={match.matchId} className={`mappingCard ${match.confidence >= 0.86 ? "high" : "medium"}`}>
+              <div className="mappingTop">
+                <div>
+                  <strong>{match.externalName}</strong>
+                  <span>
+                    {match.sourceSystem} · {match.externalRecordType} · {money(match.externalAmount)}
+                  </span>
+                </div>
+                <em>{percent(match.confidence)}</em>
               </div>
-              <em>{percent(match.confidence)}</em>
-            </div>
-            <div className="mappingArrow">
-              <span>{match.externalTitle}</span>
-              <strong>{match.xeroContactName ?? "Needs new Xero contact"}</strong>
-            </div>
-            <div className="driverEvidence">
-              {match.evidence.map((item) => (
-                <span key={`${match.matchId}-${item}`}>{item}</span>
-              ))}
-            </div>
-            <div className="mappingActions">
-              <button type="button">Approve match</button>
-              <button type="button">Reject</button>
-              <button type="button">New contact</button>
-            </div>
-          </article>
-        ))}
+              <div className="mappingArrow">
+                <span>{match.externalTitle}</span>
+                <strong>{match.xeroContactName ?? "Needs new Xero contact"}</strong>
+              </div>
+              <div className="driverEvidence">
+                {match.evidence.map((item) => (
+                  <span key={`${match.matchId}-${item}`}>{item}</span>
+                ))}
+              </div>
+              {status === "PENDING_REVIEW" ? (
+                <div className="mappingActions">
+                  <button type="button" onClick={() => onDecide(match, "APPROVED")}>
+                    Approve match
+                  </button>
+                  <button type="button" onClick={() => onDecide(match, "REJECTED")}>
+                    Reject
+                  </button>
+                  <button type="button" onClick={() => onDecide(match, "NEEDS_NEW_CONTACT")}>
+                    New contact
+                  </button>
+                </div>
+              ) : (
+                <div className={`mappingDecision ${status.toLowerCase()}`}>
+                  <Check size={14} aria-hidden="true" />
+                  <span>
+                    {status === "APPROVED"
+                      ? "Match approved and logged to the audit trail"
+                      : status === "REJECTED"
+                        ? "Match rejected and logged to the audit trail"
+                        : "Queued for a new Xero contact draft"}
+                  </span>
+                </div>
+              )}
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -1119,6 +1219,43 @@ function AdaptiveIntegrationHubPanel({
       </div>
     </section>
   );
+}
+
+function EditableMessageCard({
+  className = "",
+  draft,
+  edited,
+  metaLeft,
+  metaRight,
+  onEdit
+}: {
+  className?: string;
+  draft: string;
+  edited: boolean;
+  metaLeft: string;
+  metaRight: string;
+  onEdit: (value: string) => void;
+}) {
+  return (
+    <article className={`messageCard ${className}`}>
+      <div className="messageMeta">
+        <span>{metaLeft}</span>
+        <span>{edited ? `${metaRight} · edited` : metaRight}</span>
+      </div>
+      <textarea
+        aria-label={`Draft message for ${metaLeft}`}
+        className="messageEditor"
+        rows={5}
+        value={draft}
+        onChange={(event) => onEdit(event.target.value)}
+      />
+    </article>
+  );
+}
+
+function removeKey(record: Record<string, string>, key: string): Record<string, string> {
+  const { [key]: _removed, ...rest } = record;
+  return rest;
 }
 
 function MetricTile({

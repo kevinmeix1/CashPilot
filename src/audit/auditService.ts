@@ -1,7 +1,12 @@
 import type { AuditLogEntry } from "../types/domain";
 
+export type ApprovalDecision = "APPROVED" | "EDITED" | "REJECTED";
+
 interface ApprovalAuditInput {
   source: "demo" | "xero";
+  decision?: ApprovalDecision;
+  /** Recommendation IDs whose draft message was edited before approval. */
+  editedMessages?: Record<string, string>;
   cashActionIds: string[];
   revenueOpportunityIds: string[];
   productivityTaskIds: string[];
@@ -41,32 +46,74 @@ export function getAuditLog(): AuditLogEntry[] {
 
 export function recordApprovalAudit(input: ApprovalAuditInput): AuditLogEntry[] {
   const createdAt = new Date().toISOString();
+  const decision = input.decision ?? "APPROVED";
   const groups = [
-    ["CASH_ACTION_APPROVED", input.cashActionIds],
-    ["REVENUE_RECOMMENDATION_APPROVED", input.revenueOpportunityIds],
-    ["PRODUCTIVITY_AUTOMATION_APPROVED", input.productivityTaskIds],
-    ["ADAPTIVE_INTEGRATION_APPROVED", input.integrationCandidateIds]
+    ["CASH_ACTION", input.cashActionIds],
+    ["REVENUE_RECOMMENDATION", input.revenueOpportunityIds],
+    ["PRODUCTIVITY_AUTOMATION", input.productivityTaskIds],
+    ["ADAPTIVE_INTEGRATION", input.integrationCandidateIds]
   ] as const;
 
-  const entries = groups.flatMap(([eventType, ids]) =>
-    ids.map((id) => ({
-      auditId: `audit-${eventType.toLowerCase()}-${id}-${Date.now()}`,
-      eventType,
-      sourceRecordIds: inferSourceRecordIds(id),
-      payload: {
-        recommendationId: id,
-        source: input.source,
-        decision: "APPROVED",
-        previousStatus: "PENDING",
-        newStatus: "APPROVED",
-        reviewedExecution: true
-      },
-      createdAt
-    }))
+  const entries = groups.flatMap(([group, ids]) =>
+    ids.map((id) => {
+      const editedMessage = input.editedMessages?.[id];
+      const itemDecision: ApprovalDecision = editedMessage && decision === "APPROVED" ? "EDITED" : decision;
+      const eventType = `${group}_${itemDecision}`;
+      return {
+        auditId: `audit-${eventType.toLowerCase()}-${id}-${Date.now()}`,
+        eventType,
+        sourceRecordIds: inferSourceRecordIds(id),
+        payload: {
+          recommendationId: id,
+          source: input.source,
+          decision: itemDecision,
+          previousStatus: "PENDING",
+          newStatus: itemDecision,
+          ...(editedMessage ? { editedMessage } : {}),
+          reviewedExecution: itemDecision !== "REJECTED"
+        },
+        createdAt
+      };
+    })
   );
 
   auditLog.unshift(...entries);
   return entries;
+}
+
+export interface MappingDecisionInput {
+  matchId: string;
+  decision: "APPROVED" | "REJECTED" | "NEEDS_NEW_CONTACT";
+  externalRecordId: string;
+  xeroContactId?: string;
+  xeroContactName?: string;
+  confidence?: number;
+}
+
+const mappingDecisions = new Map<string, MappingDecisionInput["decision"]>();
+
+export function getMappingDecisions(): Record<string, MappingDecisionInput["decision"]> {
+  return Object.fromEntries(mappingDecisions);
+}
+
+export function recordMappingDecision(input: MappingDecisionInput): AuditLogEntry {
+  mappingDecisions.set(input.matchId, input.decision);
+  const entry: AuditLogEntry = {
+    auditId: `audit-mapping-${input.matchId}-${Date.now()}`,
+    eventType: `SMART_MAPPING_${input.decision}`,
+    sourceRecordIds: [input.externalRecordId, input.xeroContactId].filter((value): value is string => Boolean(value)),
+    payload: {
+      matchId: input.matchId,
+      decision: input.decision,
+      previousStatus: "PENDING_REVIEW",
+      newStatus: input.decision,
+      xeroContactName: input.xeroContactName ?? null,
+      confidence: input.confidence ?? null
+    },
+    createdAt: new Date().toISOString()
+  };
+  auditLog.unshift(entry);
+  return entry;
 }
 
 function inferSourceRecordIds(id: string): string[] {

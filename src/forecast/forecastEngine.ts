@@ -3,6 +3,7 @@ import type {
   CashDriverInsight,
   Contact,
   DataQualityResult,
+  ForecastBandPoint,
   ForecastIntelligence,
   ForecastPoint,
   ForecastScenario,
@@ -89,7 +90,7 @@ export function buildForecastScenario(
   const horizonDays = options.horizonDays ?? 90;
   const events = buildPaymentEvents(snapshot, options.actions ?? [], horizonDays);
   const points = buildDailyLedger(snapshot, events, horizonDays);
-  const crunchProbability = runMonteCarlo(snapshot, options.actions ?? [], {
+  const simulation = runMonteCarlo(snapshot, options.actions ?? [], {
     horizonDays,
     runs: options.monteCarloRuns ?? 420
   });
@@ -99,9 +100,10 @@ export function buildForecastScenario(
     threshold: snapshot.safeCashThreshold,
     horizonDays,
     points,
+    bands: simulation.bands,
     summary: {
       ...summarise(points, snapshot.safeCashThreshold),
-      crunchProbability
+      crunchProbability: simulation.crunchProbability
     }
   };
 }
@@ -617,15 +619,23 @@ function expectedReceivableDate(asOfDate: string, invoice: Invoice, contact: Con
   return modelDate;
 }
 
+interface MonteCarloResult {
+  crunchProbability: number;
+  /** p10 (pessimistic) / p50 (expected) / p90 (optimistic) daily balances across runs. */
+  bands?: ForecastBandPoint[];
+}
+
 function runMonteCarlo(
   snapshot: XeroSnapshot,
   actions: CashAction[],
   options: { horizonDays: number; runs: number }
-): number {
-  if (options.runs <= 0) return 0;
+): MonteCarloResult {
+  if (options.runs <= 0) return { crunchProbability: 0 };
 
   let breaches = 0;
   let seed = 20260704;
+  const dailyBalances: number[][] = Array.from({ length: options.horizonDays }, () => []);
+  let dates: string[] = [];
 
   for (let run = 0; run < options.runs; run += 1) {
     const variedSnapshot: XeroSnapshot = {
@@ -648,20 +658,40 @@ function runMonteCarlo(
       })
     };
 
-    const scenario = buildForecastScenario(variedSnapshot, "simulation", {
-      horizonDays: options.horizonDays,
-      actions,
-      monteCarloRuns: 0
+    const events = buildPaymentEvents(variedSnapshot, actions, options.horizonDays);
+    const points = buildDailyLedger(variedSnapshot, events, options.horizonDays);
+    if (points.some((point) => point.closingBalance < snapshot.safeCashThreshold)) breaches += 1;
+    if (dates.length === 0) dates = points.map((point) => point.date);
+    points.forEach((point, index) => {
+      dailyBalances[index].push(point.closingBalance);
     });
-    if (scenario.summary.firstThresholdBreachDate) breaches += 1;
   }
 
-  return Math.round((breaches / options.runs) * 100);
+  const bands: ForecastBandPoint[] = dailyBalances.map((balances, index) => {
+    const sorted = [...balances].sort((left, right) => left - right);
+    return {
+      date: dates[index],
+      pessimisticBalance: Math.round(percentile(sorted, 0.1)),
+      expectedBalance: Math.round(percentile(sorted, 0.5)),
+      optimisticBalance: Math.round(percentile(sorted, 0.9))
+    };
+  });
+
+  return {
+    crunchProbability: Math.round((breaches / options.runs) * 100),
+    bands
+  };
 
   function seededRandom() {
     seed = (seed * 1664525 + 1013904223) % 4294967296;
     return seed / 4294967296;
   }
+}
+
+function percentile(sortedValues: number[], ratio: number) {
+  if (sortedValues.length === 0) return 0;
+  const index = Math.min(sortedValues.length - 1, Math.max(0, Math.round(ratio * (sortedValues.length - 1))));
+  return sortedValues[index];
 }
 
 function stressReceivableDelay(snapshot: XeroSnapshot, baseline: ForecastScenario, days: number) {

@@ -71,9 +71,14 @@ function matchExternalRecord(
     .filter((contact) => contact.kind !== "supplier")
     .map((contact) => {
       const nameScore = similarity(externalName, contact.name);
-      const domainScore = emailDomain(externalEmail) && emailDomain(contact.email) === emailDomain(externalEmail) ? 0.18 : 0;
-      const confidence = Math.min(0.98, nameScore * 0.78 + domainScore + (nameScore > 0.88 ? 0.08 : 0));
-      const evidence = buildEvidence(externalName, externalEmail, contact, nameScore, domainScore);
+      const exactEmail = Boolean(externalEmail) && externalEmail?.toLowerCase() === contact.email.toLowerCase();
+      const emailScore = exactEmail
+        ? 0.45
+        : emailDomain(externalEmail) && emailDomain(contact.email) === emailDomain(externalEmail)
+          ? 0.18
+          : 0;
+      const confidence = Math.min(0.98, nameScore * 0.78 + emailScore + (nameScore > 0.88 ? 0.08 : 0));
+      const evidence = buildEvidence(externalName, externalEmail, contact, nameScore, emailScore, exactEmail);
       return { contact, confidence, evidence };
     })
     .sort((left, right) => right.confidence - left.confidence);
@@ -103,7 +108,8 @@ function buildEvidence(
   externalEmail: string | undefined,
   contact: Contact,
   nameScore: number,
-  domainScore: number
+  emailScore: number,
+  exactEmail: boolean
 ) {
   const evidence: string[] = [];
   if (nameScore >= 0.9) {
@@ -112,7 +118,9 @@ function buildEvidence(
     evidence.push("Company names partially match after normalisation.");
   }
 
-  if (domainScore > 0) {
+  if (exactEmail) {
+    evidence.push(`Both records use the exact billing email ${externalEmail}.`);
+  } else if (emailScore > 0) {
     evidence.push(`Both records share the ${emailDomain(externalEmail)} email domain.`);
   }
 

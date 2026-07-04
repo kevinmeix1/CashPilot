@@ -940,8 +940,68 @@ a {
   border: 1px solid rgba(109, 108, 255, 0.28);
   border-radius: 999px;
   color: #dce4ff;
+  cursor: pointer;
   min-height: 32px;
   padding: 0 10px;
+}
+
+.mappingActions button:hover {
+  background: rgba(109, 108, 255, 0.32);
+}
+
+.mappingDecision {
+  align-items: center;
+  border-radius: 999px;
+  display: flex;
+  font-size: 12px;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.mappingDecision.approved {
+  background: rgba(65, 216, 197, 0.14);
+  border: 1px solid rgba(65, 216, 197, 0.32);
+  color: #41d8c5;
+}
+
+.mappingDecision.rejected {
+  background: rgba(255, 77, 109, 0.12);
+  border: 1px solid rgba(255, 77, 109, 0.3);
+  color: #ff8ba0;
+}
+
+.mappingDecision.needs_new_contact {
+  background: rgba(245, 182, 76, 0.12);
+  border: 1px solid rgba(245, 182, 76, 0.3);
+  color: #f5b64c;
+}
+
+.messageEditor {
+  background: rgba(5, 8, 23, 0.55);
+  border: 1px solid #252d55;
+  border-radius: 8px;
+  color: #cdd5f4;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px;
+  resize: vertical;
+  width: 100%;
+}
+
+.messageEditor:focus {
+  border-color: #6d6cff;
+  outline: none;
+}
+
+.rejectButton {
+  border-color: rgba(255, 77, 109, 0.4) !important;
+  color: #ff8ba0 !important;
+}
+
+.rejectButton:disabled {
+  opacity: 0.45;
 }
 
 .auditList {
