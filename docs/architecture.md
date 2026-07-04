@@ -29,12 +29,12 @@ flowchart TD
 2. The backend loads either live Xero data or the seeded Xero demo snapshot.
 3. Xero records are normalised into contacts, invoices, bills, payments, line items, reports, and recurring cash flows.
 4. External sales records are loaded from the mock CRM/e-commerce connector.
-5. Smart Mapping compares external customer names and email domains against Xero contacts.
-6. Revenue Leak Detector checks whether closed-won external deals already have matching Xero invoices.
-7. Forecast Engine builds a baseline cash forecast and an after-actions forecast.
+5. Smart Mapping compares external customer names and email addresses/domains against Xero contacts, producing confidence scores and evidence strings.
+6. Revenue Leak Detector checks whether closed-won external deals already have matching Xero invoices, and flags paid external orders with no confident Xero contact match (`unmatched_external_order`).
+7. Forecast Engine builds a baseline cash forecast and an after-actions forecast; the Monte Carlo simulation also produces p10/p50/p90 daily balance bands used by the fan chart.
 8. Recommendation engines produce cash actions, revenue actions, productivity automations, and adaptive integration candidates.
-9. The UI renders evidence and lets the owner approve selected recommendations.
-10. `POST /api/actions/approve` records audit entries with source record IDs.
+9. The UI renders evidence and lets the owner approve, reject, or edit-then-approve selected recommendations, and approve/reject/new-contact each smart-mapping match.
+10. `POST /api/actions/approve` and `POST /api/actions/reject` record audit entries with source record IDs and the resulting status (`APPROVED`, `EDITED`, or `REJECTED`). `POST /api/mappings/:matchId/decision` records mapping decisions, which persist in memory and are re-applied on the next dashboard load.
 
 ## Core Modules
 

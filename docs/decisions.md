@@ -32,9 +32,11 @@ Small businesses are sensitive to customer tone, supplier relationships, VAT/tax
 - source records
 - expected impact
 - recommendation rationale
-- draft message
+- draft message (editable by the owner before approval)
 - planned Xero writeback
 - owner control note
+
+Every recommendation follows a PENDING → APPROVED / EDITED / REJECTED lifecycle, and smart-mapping matches follow PENDING_REVIEW → APPROVED / REJECTED / NEEDS_NEW_CONTACT. Each transition is written to the audit log with the source record IDs, so the owner can always answer "who decided what, based on which records".
 
 This makes the product safer and more credible.
 

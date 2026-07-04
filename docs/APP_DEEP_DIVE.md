@@ -1758,7 +1758,6 @@ Production next steps:
 - implement reviewed Xero writeback
 - integrate real CRM/e-commerce/payment connectors
 - add webhook/event ingestion
-- add owner-editable message drafts
 - add approval roles and permissions
 - add data quality repair workflows
 - add forecast calibration from historical payment behavior

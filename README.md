@@ -21,12 +21,12 @@ CashPilot:
 ## What It Builds
 
 - Cash-flow forecast with 30, 60, and 90 day horizons.
-- Monte Carlo crunch probability shown as a simple risk percentage.
+- Monte Carlo crunch probability shown as a simple risk percentage, plus p10/p50/p90 optimistic-expected-pessimistic bands computed from the same simulation.
 - Forecast explainability with ranked business drivers, model cards, and sensitivity analysis.
-- Revenue Leak Detector for closed-won-not-invoiced, dormant customers, upsell, subscription conversion, late payment recovery, and underperforming services.
-- Smart Mapping Review for CRM/e-commerce records that do not perfectly match Xero names.
-- Human approval queue for cash actions, growth actions, productivity automations, and integration syncs.
-- Audit log with source-record traceability for every approved recommendation.
+- Revenue Leak Detector for closed-won-not-invoiced, unmatched external orders, dormant customers, upsell, subscription conversion, late payment recovery, and underperforming services.
+- Smart Mapping Review with working approve/reject/new-contact decisions that persist across refreshes and land in the audit log.
+- Human approval queue for cash actions, growth actions, productivity automations, and integration syncs — with per-draft message editing and a full PENDING → APPROVED / EDITED / REJECTED decision flow.
+- Audit log with source-record traceability for every approved, edited, or rejected recommendation and every mapping decision.
 - Xero API footprint panel showing the Accounting API endpoints, scopes, SDK, MCP, and agent-toolkit pattern.
 
 ## Bounty Fit

@@ -47,6 +47,10 @@ Say:
 
 "CashPilot does not trust exact matching. It normalises names, checks email-domain evidence, and asks for human approval when the match matters."
 
+Click `Approve match` on the Brightside card.
+
+"The decision is recorded immediately — watch the audit log pick up `SMART_MAPPING_APPROVED` with the CRM deal ID and the Xero contact ID."
+
 ### 4. Show Revenue Leak Detector
 
 "Because that deal is closed-won and no matching Xero invoice exists, CashPilot finds a revenue leak."
@@ -93,13 +97,13 @@ Say:
 
 "The app is proactive, but not reckless. No message or accounting writeback happens without approval."
 
-### 7. Approve Actions
+### 7. Edit, Approve, Or Reject Actions
 
-Click `Approve`.
+Edit one draft message in the Human approval queue, then click `Approve`.
 
 Say:
 
-"Approved items are queued for execution and logged with source IDs."
+"The owner stays in control: drafts are editable before approval, anything can be rejected instead, and every decision — approved, edited, or rejected — is logged with source IDs."
 
 ### 8. Show Audit Log
 
