@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { recordApprovalAudit } from "../src/audit/auditService";
+import { recordApprovalAudit, recordMappingReview } from "../src/audit/auditService";
 import { demoSnapshot } from "../src/data/demoSnapshot";
 import { buildForecastScenario, recommendCashActions } from "../src/forecast/forecastEngine";
 import {
@@ -68,9 +68,24 @@ function testApprovalAudit() {
   assert.equal(entries[0].payload.newStatus, "APPROVED");
 }
 
+function testMappingReviewAudit() {
+  const entry = recordMappingReview({
+    matchId: "match-crm-deal-6500",
+    decision: "APPROVED",
+    sourceRecordIds: ["CRM-DEAL-6500", "contact-bright"],
+    externalName: "Brightside Studio Ltd",
+    xeroContactName: "Brightside Studios"
+  });
+
+  assert.equal(entry.eventType, "SMART_MAPPING_REVIEWED");
+  assert.equal(entry.payload.newStatus, "APPROVED");
+  assert.equal(entry.payload.previousStatus, "PENDING_REVIEW");
+}
+
 testSmartMapping();
 testRevenueLeakDetection();
 testForecastAndActions();
 testApprovalAudit();
+testMappingReviewAudit();
 
 console.log("CashPilot core tests passed.");
