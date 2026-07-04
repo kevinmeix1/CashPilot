@@ -1,7 +1,9 @@
 import type {
   CashAction,
+  CashDriverInsight,
   Contact,
   DataQualityResult,
+  ForecastIntelligence,
   ForecastPoint,
   ForecastScenario,
   Invoice,
@@ -244,6 +246,224 @@ export function recommendCashActions(snapshot: XeroSnapshot, baseline: ForecastS
     .sort((left, right) => right.cashImpactBeforeCrunch - left.cashImpactBeforeCrunch);
 }
 
+export function buildForecastIntelligence(
+  snapshot: XeroSnapshot,
+  baseline: ForecastScenario,
+  afterActions: ForecastScenario,
+  actions: CashAction[],
+  revenueGrowth?: RevenueGrowthSummary,
+  revenueOpportunities: RevenueOpportunity[] = []
+): ForecastIntelligence {
+  const baselineMinimum = baseline.summary.minimumCashBalance;
+  const contacts = new Map(snapshot.contacts.map((contact) => [contact.id, contact]));
+  const receivables = snapshot.invoices.filter(
+    (invoice) => invoice.type === "ACCREC" && invoice.status === "AUTHORISED" && invoice.amountDue > 0
+  );
+  const payables = snapshot.invoices.filter(
+    (invoice) => invoice.type === "ACCPAY" && invoice.status === "AUTHORISED" && invoice.amountDue > 0
+  );
+  const totalReceivables = receivables.reduce((sum, invoice) => sum + invoice.amountDue, 0);
+  const totalPayables = payables.reduce((sum, invoice) => sum + invoice.amountDue, 0);
+  const recurringOutflows = snapshot.recurringCashFlows
+    .filter((flow) => flow.direction === "outflow")
+    .reduce((sum, flow) => sum + flow.amount, 0);
+  const actionProtection = actions.reduce((sum, action) => sum + action.cashImpactBeforeCrunch, 0);
+  const largestReceivable = receivables.reduce<Invoice | null>(
+    (largest, invoice) => (!largest || invoice.amountDue > largest.amountDue ? invoice : largest),
+    null
+  );
+  const largestReceivableContact = largestReceivable ? contacts.get(largestReceivable.contactId) : undefined;
+  const lateWeightedReceivables = receivables.reduce((sum, invoice) => {
+    const contact = contacts.get(invoice.contactId);
+    if (!contact) return sum;
+    const expectedDate = expectedReceivableDate(snapshot.asOfDate, invoice, contact);
+    const expectedDelay = Math.max(0, daysBetween(invoice.dueDate, expectedDate));
+    return sum + invoice.amountDue * Math.min(1, expectedDelay / 30) * (1 - contact.paymentReliability + 0.35);
+  }, 0);
+  const receivableDelayImpact = stressReceivableDelay(snapshot, baseline, 7);
+  const supplierTimingImpact = stressSupplierTiming(snapshot, baseline, -7);
+  const openingBuffer = snapshot.openingCashBalance - snapshot.safeCashThreshold;
+  const cashImprovement = afterActions.summary.minimumCashBalance - baseline.summary.minimumCashBalance;
+
+  const cashDriverCandidates: CashDriverInsight[] = [
+    {
+      id: "driver-payment-delay",
+      label: "Customer payment timing",
+      direction: "risk",
+      impactAmount: Math.round(Math.max(lateWeightedReceivables, receivableDelayImpact)),
+      impactLabel: formatMoney(Math.round(Math.max(lateWeightedReceivables, receivableDelayImpact)), snapshot.currency),
+      explanation:
+        "The forecast is most sensitive to when authorised receivables actually land, not just their due dates.",
+      evidence: [
+        `${formatMoney(totalReceivables, snapshot.currency)} open customer receivables`,
+        `${receivables.length} authorised customer invoice(s)`,
+        largestReceivable
+          ? `Largest invoice: ${largestReceivable.invoiceNumber} from ${largestReceivableContact?.name ?? "unknown contact"}`
+          : "No open receivables"
+      ],
+      sensitivity: `If open customer receipts slip by 7 days, minimum cash falls by ${formatMoney(
+        receivableDelayImpact,
+        snapshot.currency
+      )}.`,
+      confidence: receivables.length >= 2 ? "high" : "medium"
+    },
+    {
+      id: "driver-supplier-timing",
+      label: "Supplier payment timing",
+      direction: "negative",
+      impactAmount: Math.round(Math.max(totalPayables, supplierTimingImpact)),
+      impactLabel: formatMoney(Math.round(Math.max(totalPayables, supplierTimingImpact)), snapshot.currency),
+      explanation:
+        "Supplier bills and planned payment dates create the steepest downward steps in the short-term cash curve.",
+      evidence: [
+        `${formatMoney(totalPayables, snapshot.currency)} authorised supplier bills`,
+        `${payables.length} payable item(s) in the forecast window`,
+        actions.some((action) => action.type === "delay_supplier_payment")
+          ? "One supplier timing action is available for approval"
+          : "No supplier timing action selected"
+      ],
+      sensitivity: `Pulling supplier payments 7 days earlier lowers minimum cash by ${formatMoney(
+        supplierTimingImpact,
+        snapshot.currency
+      )}.`,
+      confidence: payables.length > 0 ? "high" : "medium"
+    },
+    {
+      id: "driver-fixed-cost-load",
+      label: "Fixed cost load",
+      direction: "negative",
+      impactAmount: Math.round(recurringOutflows),
+      impactLabel: formatMoney(Math.round(recurringOutflows), snapshot.currency),
+      explanation: "Recurring rent, software, and operating costs reduce the buffer even when invoice timing is stable.",
+      evidence: [
+        `${snapshot.recurringCashFlows.filter((flow) => flow.direction === "outflow").length} recurring outflow(s)`,
+        `${formatMoney(recurringOutflows, snapshot.currency)} recurring outflow per cycle`,
+        "Recurring flows are projected across the 90-day ledger"
+      ],
+      sensitivity: `A 10% fixed-cost reduction would improve monthly cash by about ${formatMoney(
+        Math.round(recurringOutflows * 0.1),
+        snapshot.currency
+      )}.`,
+      confidence: snapshot.recurringCashFlows.length > 0 ? "medium" : "low"
+    },
+    {
+      id: "driver-action-lift",
+      label: "Approved action lift",
+      direction: "positive",
+      impactAmount: Math.round(actionProtection),
+      impactLabel: formatMoney(Math.round(actionProtection), snapshot.currency),
+      explanation:
+        "The selected cash actions change the timing of receipts and payments before the risk window arrives.",
+      evidence: [
+        `${actions.length} cash action(s) selected`,
+        `${formatMoney(cashImprovement, snapshot.currency)} improvement to minimum cash`,
+        afterActions.summary.firstThresholdBreachDate
+          ? `After-action breach remains on ${afterActions.summary.firstThresholdBreachDate}`
+          : "After-action forecast removes the threshold breach"
+      ],
+      sensitivity: `Removing selected actions would bring the minimum cash back to ${formatMoney(
+        baselineMinimum,
+        snapshot.currency
+      )}.`,
+      confidence: actions.length > 0 ? "high" : "medium"
+    },
+    {
+      id: "driver-revenue-upside",
+      label: "Revenue opportunity pipeline",
+      direction: "positive",
+      impactAmount: Math.round(revenueGrowth?.totalExpectedCashFlow ?? 0),
+      impactLabel: formatMoney(Math.round(revenueGrowth?.totalExpectedCashFlow ?? 0), snapshot.currency),
+      explanation:
+        "Detected growth opportunities do not fix today's bank balance immediately, but they improve the forward cash outlook.",
+      evidence: [
+        `${revenueGrowth?.opportunitiesDetected ?? 0} growth opportunity/opportunities`,
+        `${formatMoney(revenueGrowth?.totalExpectedRevenue ?? 0, snapshot.currency)} expected revenue impact`,
+        revenueOpportunities[0]?.title ?? "No growth opportunity detected"
+      ],
+      sensitivity: `Converting the top opportunity adds about ${formatMoney(
+        revenueOpportunities[0]?.expectedCashFlowImpact ?? 0,
+        snapshot.currency
+      )} expected cash-flow lift.`,
+      confidence: revenueOpportunities.length > 0 ? revenueOpportunities[0].confidence : "medium"
+    },
+    {
+      id: "driver-starting-buffer",
+      label: "Starting cash buffer",
+      direction: openingBuffer >= 0 ? "positive" : "risk",
+      impactAmount: Math.round(Math.abs(openingBuffer)),
+      impactLabel: formatMoney(Math.round(Math.abs(openingBuffer)), snapshot.currency),
+      explanation: "Opening cash relative to the safety threshold determines how much timing shock the business can absorb.",
+      evidence: [
+        `Opening cash: ${formatMoney(snapshot.openingCashBalance, snapshot.currency)}`,
+        `Safe threshold: ${formatMoney(snapshot.safeCashThreshold, snapshot.currency)}`,
+        baseline.summary.firstThresholdBreachDate
+          ? `Baseline breach: ${baseline.summary.firstThresholdBreachDate}`
+          : "No baseline breach in horizon"
+      ],
+      sensitivity: `Every ${formatMoney(1000, snapshot.currency)} of extra starting cash delays or softens threshold risk.`,
+      confidence: "high"
+    }
+  ];
+  const cashDrivers = cashDriverCandidates
+    .filter((driver) => driver.impactAmount > 0)
+    .sort((left, right) => right.impactAmount - left.impactAmount)
+    .slice(0, 6);
+
+  const biggestRisk = cashDrivers.find((driver) => driver.direction !== "positive")?.label ?? "No major cash risk";
+  const biggestOpportunity = cashDrivers.find((driver) => driver.direction === "positive")?.label ?? "No action lift selected";
+
+  return {
+    explainabilitySummary: `${biggestRisk} is the main pressure on cash, while ${biggestOpportunity.toLowerCase()} is the strongest lever the owner can control.`,
+    biggestRisk,
+    biggestOpportunity,
+    models: [
+      {
+        id: "model-daily-ledger",
+        name: "Daily cash ledger forecast",
+        type: "time_series",
+        purpose: "Project daily opening and closing cash over 30-90 days.",
+        xeroInputs: ["Bank summary", "Authorised invoices", "Bills", "Repeating cash flows"],
+        method: "Deterministic time-series ledger with dated inflows and outflows.",
+        output: `Minimum baseline cash is ${formatMoney(baseline.summary.minimumCashBalance, snapshot.currency)} on ${
+          baseline.summary.minimumCashDate
+        }.`,
+        confidence: "high"
+      },
+      {
+        id: "model-payment-delay",
+        name: "Customer payment-delay model",
+        type: "payment_delay",
+        purpose: "Estimate when receivables will actually arrive.",
+        xeroInputs: ["Contacts", "Paid invoices", "Due dates", "Fully paid dates"],
+        method: "Contact-level median days late and reliability scoring from Xero payment history.",
+        output: `${formatMoney(totalReceivables, snapshot.currency)} of open receivables are timing-sensitive.`,
+        confidence: receivables.length >= 2 ? "high" : "medium"
+      },
+      {
+        id: "model-monte-carlo",
+        name: "Monte Carlo cash simulation",
+        type: "monte_carlo",
+        purpose: "Estimate probability of a future cash threshold breach.",
+        xeroInputs: ["Open receivables", "Customer reliability", "Supplier bills", "Recurring flows"],
+        method: "420 seeded simulations varying customer payment delays around contact reliability.",
+        output: `${baseline.summary.crunchProbability}% baseline crunch probability, ${afterActions.summary.crunchProbability}% after actions.`,
+        confidence: "medium"
+      },
+      {
+        id: "model-driver-attribution",
+        name: "Cash-driver attribution",
+        type: "driver_attribution",
+        purpose: "Explain which business factors move the forecast most.",
+        xeroInputs: ["Invoice concentration", "Payable timing", "Recurring costs", "Action impact"],
+        method: "Sensitivity tests and factor scoring against the minimum cash point.",
+        output: `${cashDrivers.length} ranked cash drivers explain the forecast movement.`,
+        confidence: "medium"
+      }
+    ],
+    cashDrivers
+  };
+}
+
 export function buildFallbackNarrative(
   snapshot: XeroSnapshot,
   baseline: ForecastScenario,
@@ -442,6 +662,46 @@ function runMonteCarlo(
     seed = (seed * 1664525 + 1013904223) % 4294967296;
     return seed / 4294967296;
   }
+}
+
+function stressReceivableDelay(snapshot: XeroSnapshot, baseline: ForecastScenario, days: number) {
+  const contacts = new Map(snapshot.contacts.map((contact) => [contact.id, contact]));
+  const stressed: XeroSnapshot = {
+    ...snapshot,
+    invoices: snapshot.invoices.map((invoice) => {
+      if (invoice.type !== "ACCREC" || invoice.status !== "AUTHORISED" || invoice.amountDue <= 0) return invoice;
+      const contact = contacts.get(invoice.contactId);
+      if (!contact) return invoice;
+
+      return {
+        ...invoice,
+        expectedPaymentDate: addDays(expectedReceivableDate(snapshot.asOfDate, invoice, contact), days)
+      };
+    })
+  };
+  const scenario = buildForecastScenario(stressed, "Receivable delay sensitivity", {
+    horizonDays: baseline.horizonDays,
+    monteCarloRuns: 0
+  });
+  return Math.max(0, baseline.summary.minimumCashBalance - scenario.summary.minimumCashBalance);
+}
+
+function stressSupplierTiming(snapshot: XeroSnapshot, baseline: ForecastScenario, days: number) {
+  const stressed: XeroSnapshot = {
+    ...snapshot,
+    invoices: snapshot.invoices.map((invoice) => {
+      if (invoice.type !== "ACCPAY" || invoice.status !== "AUTHORISED" || invoice.amountDue <= 0) return invoice;
+      return {
+        ...invoice,
+        plannedPaymentDate: addDays(invoice.plannedPaymentDate ?? invoice.dueDate, days)
+      };
+    })
+  };
+  const scenario = buildForecastScenario(stressed, "Supplier timing sensitivity", {
+    horizonDays: baseline.horizonDays,
+    monteCarloRuns: 0
+  });
+  return Math.max(0, baseline.summary.minimumCashBalance - scenario.summary.minimumCashBalance);
 }
 
 function confidenceFromReliability(reliability: number) {

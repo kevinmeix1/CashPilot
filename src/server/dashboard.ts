@@ -4,6 +4,7 @@ import {
   assessDataQuality,
   buildFallbackNarrative,
   buildForecastScenario,
+  buildForecastIntelligence,
   recommendCashActions
 } from "../forecast/forecastEngine";
 import type { DashboardPayload, XeroSnapshot } from "../types/domain";
@@ -27,6 +28,14 @@ export async function buildDashboardPayload(
   });
   const revenueOpportunities = buildRevenueOpportunities(snapshot);
   const revenueGrowth = summariseRevenueGrowth(revenueOpportunities);
+  const forecastIntelligence = buildForecastIntelligence(
+    snapshot,
+    baseline,
+    afterActions,
+    recommendedActions,
+    revenueGrowth,
+    revenueOpportunities
+  );
   const ownerPriorities = buildOwnerPriorities({
     snapshot,
     baseline,
@@ -88,6 +97,7 @@ export async function buildDashboardPayload(
     dataQuality,
     baseline,
     afterActions,
+    forecastIntelligence,
     recommendedActions,
     revenueGrowth,
     revenueOpportunities,

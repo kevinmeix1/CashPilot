@@ -1609,3 +1609,187 @@ body {
     font-size: 34px;
   }
 }
+
+.forecastIntelPanel {
+  background:
+    linear-gradient(180deg, rgba(17, 23, 51, 0.96), rgba(10, 15, 34, 0.96)),
+    #0b1024;
+  border: 1px solid #20284b;
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+  margin: 0 auto 18px;
+  max-width: 1500px;
+  padding: 18px;
+}
+
+.intelSummary {
+  color: #dce4ff;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.5;
+  margin: 14px 0 0;
+}
+
+.intelGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+  margin-top: 16px;
+}
+
+.modelPanel,
+.driverPanel {
+  background: rgba(15, 21, 45, 0.72);
+  border: 1px solid #20284b;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.subPanelHeader {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.subPanelHeader strong {
+  color: #f5f7ff;
+}
+
+.subPanelHeader span {
+  background: rgba(109, 108, 255, 0.16);
+  border: 1px solid rgba(109, 108, 255, 0.28);
+  border-radius: 999px;
+  color: #dce4ff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 8px;
+}
+
+.modelList,
+.driverList {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.modelCard,
+.driverCard {
+  background: rgba(8, 13, 31, 0.78);
+  border: 1px solid #20284b;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.modelTop,
+.driverTop {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.modelTop strong,
+.driverTop strong {
+  color: #f5f7ff;
+  line-height: 1.25;
+}
+
+.modelTop span,
+.driverTop span {
+  background: rgba(65, 216, 197, 0.1);
+  border: 1px solid rgba(65, 216, 197, 0.24);
+  border-radius: 999px;
+  color: #41d8c5;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 7px;
+  text-transform: capitalize;
+}
+
+.modelCard p,
+.driverCard p {
+  color: #9aa4c7;
+  font-size: 13px;
+  line-height: 1.48;
+  margin: 0;
+}
+
+.modelInputs,
+.driverEvidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.modelInputs span,
+.driverEvidence span {
+  background: rgba(15, 21, 45, 0.88);
+  border: 1px solid #20284b;
+  border-radius: 999px;
+  color: #9aa4c7;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 8px;
+}
+
+.modelOutput,
+.driverSensitivity {
+  background: rgba(109, 108, 255, 0.1);
+  border: 1px solid rgba(109, 108, 255, 0.22);
+  border-radius: 8px;
+  color: #b9c2e7;
+  display: grid;
+  font-size: 12px;
+  gap: 5px;
+  line-height: 1.45;
+  padding: 9px 10px;
+}
+
+.modelOutput strong {
+  color: #f5f7ff;
+}
+
+.driverCard.risk {
+  border-left: 4px solid #ff4d6d;
+}
+
+.driverCard.negative {
+  border-left: 4px solid #f5b64c;
+}
+
+.driverCard.positive {
+  border-left: 4px solid #41d8c5;
+}
+
+.driverCard.risk .driverTop > strong {
+  color: #ff8fa2;
+}
+
+.driverCard.negative .driverTop > strong {
+  color: #f5d08c;
+}
+
+.driverCard.positive .driverTop > strong {
+  color: #41d8c5;
+}
+
+@media (max-width: 1250px) {
+  .intelGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .forecastIntelPanel {
+    padding: 14px;
+  }
+
+  .subPanelHeader,
+  .modelTop,
+  .driverTop {
+    grid-template-columns: 1fr;
+  }
+}

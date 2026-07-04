@@ -69,7 +69,23 @@ Talk track:
 
 "The app does not just say there is a problem. It shows whether the selected actions remove the risk."
 
-## Slide 7: Human Approval Queue
+## Slide 7: Forecast Intelligence
+
+Show the Forecast Intelligence panel.
+
+Highlight:
+
+- daily time-series ledger
+- customer payment-delay model
+- Monte Carlo crunch simulation
+- cash-driver attribution
+- sensitivity tests such as "what if receipts slip by 7 days?"
+
+Key phrase:
+
+"This explains what is moving cash, not just where the line goes."
+
+## Slide 8: Human Approval Queue
 
 Show Pending Approval.
 
@@ -81,12 +97,14 @@ Every action includes:
 - what happens on approval
 - human-control note
 
-## Slide 8: Why It Wins
+## Slide 9: Why It Wins
 
 CashFlow Radar combines:
 
 - Xero data analysis
 - deterministic forecasting
+- ML-style payment-delay and Monte Carlo risk modelling
+- explainability for business cash drivers
 - AI agent explanation and drafting
 - proactive revenue action
 - human-in-the-loop safety

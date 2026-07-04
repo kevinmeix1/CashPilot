@@ -22,6 +22,8 @@ The product recommends:
 
 Each recommendation includes Xero evidence, expected impact, an agent-drafted message, and a human-control note.
 
+The dashboard also includes a forecast intelligence layer that shows which model layers are running and which business factors are driving the cash forecast.
+
 ## How The Project Uses The Xero API
 
 CashFlow Radar uses Xero as the accounting system of record. The live path connects through Xero OAuth 2.0 using the official `xero-node` SDK, then maps Xero records into deterministic forecast and revenue-opportunity models.
@@ -30,6 +32,9 @@ Xero data powers:
 
 - **Cash-flow forecast:** open receivables, payables, payment timing, bank-summary cash position.
 - **Customer payment-delay model:** contacts, authorised invoices, paid invoices, due dates, fully paid dates.
+- **Time-series forecast:** daily ledger of expected inflows/outflows across 30, 60, and 90 days.
+- **Monte Carlo simulation:** payment-delay uncertainty and crunch probability.
+- **Explainability:** cash-driver attribution for customer payment timing, supplier timing, fixed costs, starting buffer, revenue pipeline, and approved action lift.
 - **Revenue opportunity engine:** invoice line items, contacts, paid invoices, service categories, repeat purchases.
 - **Action approval queue:** invoice IDs, contact names, bill IDs, quote/draft-action plans.
 - **Xero API footprint panel:** visible endpoint and record provenance for judges.
@@ -100,6 +105,7 @@ Compatibility/reporting scope:
 - OpenAI Agents SDK for optional narrative/agent orchestration
 - Optional Xero MCP bridge scaffolding via `@xeroapi/xero-mcp-server`
 - Recharts for the before-vs-after forecast chart
+- Deterministic time-series ledger, payment-delay model, Monte Carlo simulation, and cash-driver attribution
 - GitHub repository: https://github.com/kevinmeix1/cashflow-radar
 
 ## Track(s)
@@ -127,4 +133,4 @@ TODO: paste Loom/YouTube/Drive link here.
 
 CashFlow Radar is a Xero-powered revenue and cash-flow action cockpit for small businesses. It connects to Xero via OAuth 2.0 using the official `xero-node` SDK, reads accounting records such as contacts, invoices, payments, bank transactions, repeating invoices, tracking categories, and financial reports, then turns that data into a 30-90 day cash forecast and a ranked approval queue of revenue and cash-flow actions.
 
-The system detects future cash crunches, identifies dormant customers, upsell/cross-sell opportunities, subscription conversions, late-payment recovery actions, and underperforming services. Each recommendation includes Xero evidence, forecast impact, an agent-drafted message, and a human approval step before any external action is taken.
+The system combines a deterministic daily time-series ledger, customer payment-delay model, Monte Carlo cash simulation, and cash-driver attribution layer. It detects future cash crunches, identifies dormant customers, upsell/cross-sell opportunities, subscription conversions, late-payment recovery actions, and underperforming services. Each recommendation includes Xero evidence, forecast impact, an agent-drafted message, and a human approval step before any external action is taken.

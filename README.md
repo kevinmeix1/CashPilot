@@ -19,6 +19,7 @@ The app forecasts the next 30-90 days, detects risk windows, finds revenue oppor
   - late-payment recovery
   - underperforming service/package fixes
 - Shows a before-vs-after forecast when recommended actions are selected.
+- Explains the forecast with model cards, ranked cash drivers, and sensitivity tests.
 - Drafts customer and supplier messages with human approval.
 - Explains every action with Xero-backed evidence and an approval plan.
 
@@ -40,6 +41,7 @@ Small business owners often know they have overdue invoices, but not which actio
 - OpenAI Agents SDK for narrative/agent orchestration when `OPENAI_API_KEY` is configured
 - Optional Xero MCP bridge scaffolding via `@xeroapi/xero-mcp-server`
 - Deterministic forecast, ranking, and revenue-opportunity engines
+- Forecast explainability layer for payment-delay, Monte Carlo, time-series, and driver-attribution models
 
 ## Xero Integration
 

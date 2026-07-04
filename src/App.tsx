@@ -519,6 +519,8 @@ export function App() {
           </aside>
         </section>
 
+        <ForecastIntelligencePanel intelligence={payload.forecastIntelligence} />
+
         <section className="pipelineGrid">
           <div className="pipelinePanel">
             <div className="panelHeader compact">
@@ -678,6 +680,81 @@ export function App() {
         </section>
       </section>
     </main>
+  );
+}
+
+function ForecastIntelligencePanel({
+  intelligence
+}: {
+  intelligence: DashboardPayload["forecastIntelligence"];
+}) {
+  return (
+    <section className="forecastIntelPanel">
+      <div className="panelHeader compact">
+        <div>
+          <span className="sectionLabel">Forecast intelligence</span>
+          <h2>Business factors driving the cash forecast</h2>
+        </div>
+        <TrendingUp size={20} aria-hidden="true" />
+      </div>
+      <p className="intelSummary">{intelligence.explainabilitySummary}</p>
+
+      <div className="intelGrid">
+        <div className="modelPanel">
+          <div className="subPanelHeader">
+            <strong>Models running</strong>
+            <span>{intelligence.models.length} model layers</span>
+          </div>
+          <div className="modelList">
+            {intelligence.models.map((model) => (
+              <article key={model.id} className="modelCard">
+                <div className="modelTop">
+                  <strong>{model.name}</strong>
+                  <span>{model.type.replaceAll("_", " ")}</span>
+                </div>
+                <p>{model.purpose}</p>
+                <div className="modelInputs">
+                  {model.xeroInputs.map((input) => (
+                    <span key={`${model.id}-${input}`}>{input}</span>
+                  ))}
+                </div>
+                <div className="modelOutput">
+                  <span>{model.method}</span>
+                  <strong>{model.output}</strong>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <div className="driverPanel">
+          <div className="subPanelHeader">
+            <strong>Cash drivers</strong>
+            <span>Risk: {intelligence.biggestRisk}</span>
+          </div>
+          <div className="driverList">
+            {intelligence.cashDrivers.map((driver) => (
+              <article key={driver.id} className={`driverCard ${driver.direction}`}>
+                <div className="driverTop">
+                  <div>
+                    <strong>{driver.label}</strong>
+                    <span>{driver.direction}</span>
+                  </div>
+                  <strong>{driver.impactLabel}</strong>
+                </div>
+                <p>{driver.explanation}</p>
+                <div className="driverEvidence">
+                  {driver.evidence.map((item) => (
+                    <span key={`${driver.id}-${item}`}>{item}</span>
+                  ))}
+                </div>
+                <div className="driverSensitivity">{driver.sensitivity}</div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

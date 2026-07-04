@@ -108,6 +108,39 @@ export interface ForecastScenario {
   summary: ScenarioSummary;
 }
 
+export type ForecastModelType = "time_series" | "payment_delay" | "monte_carlo" | "driver_attribution";
+
+export interface ForecastModelInsight {
+  id: string;
+  name: string;
+  type: ForecastModelType;
+  purpose: string;
+  xeroInputs: string[];
+  method: string;
+  output: string;
+  confidence: RiskLevel;
+}
+
+export interface CashDriverInsight {
+  id: string;
+  label: string;
+  direction: "positive" | "negative" | "risk";
+  impactAmount: number;
+  impactLabel: string;
+  explanation: string;
+  evidence: string[];
+  sensitivity: string;
+  confidence: RiskLevel;
+}
+
+export interface ForecastIntelligence {
+  explainabilitySummary: string;
+  biggestRisk: string;
+  biggestOpportunity: string;
+  models: ForecastModelInsight[];
+  cashDrivers: CashDriverInsight[];
+}
+
 export type CashActionType =
   | "chase_invoice"
   | "early_payment_incentive"
@@ -253,6 +286,7 @@ export interface DashboardPayload {
   dataQuality: DataQualityResult;
   baseline: ForecastScenario;
   afterActions: ForecastScenario;
+  forecastIntelligence: ForecastIntelligence;
   recommendedActions: CashAction[];
   revenueGrowth: RevenueGrowthSummary;
   revenueOpportunities: RevenueOpportunity[];

@@ -56,19 +56,37 @@ Say:
 
 "The before-vs-after chart shows whether these actions actually change the forecast. The numerical forecast is deterministic. The agents explain, rank, and draft actions, but they do not invent the numbers."
 
-## Step 5: Show Revenue Opportunity Agent
+## Step 5: Show Forecast Intelligence
+
+Say:
+
+"Under the chart, Forecast Intelligence explains what is driving cash. There are four model layers: daily time-series ledger, customer payment-delay model, Monte Carlo cash simulation, and cash-driver attribution."
+
+Point to:
+
+- customer payment timing
+- supplier payment timing
+- fixed cost load
+- approved action lift
+- revenue opportunity pipeline
+
+Say:
+
+"This is what makes the forecast useful for business decisions. It tells the owner which factors move cash and runs sensitivity checks like what happens if customer receipts slip by seven days."
+
+## Step 6: Show Revenue Opportunity Agent
 
 Say:
 
 "This is where the app aligns with the growth track. It detects dormant customers, retainer conversions, upsells, late-payment recovery, and underperforming services from Xero invoice and line-item activity."
 
-## Step 6: Show Xero API Footprint
+## Step 7: Show Xero API Footprint
 
 Say:
 
 "Here is the Xero API footprint: invoices, contacts, accounts, items, payments, quotes, bank transactions, repeating invoices, tracking categories, and reports. The live path uses OAuth 2.0 scopes for invoices, contacts, payments, bank transactions, reports, and settings."
 
-## Step 7: Approval
+## Step 8: Approval
 
 Click **Approve 8**.
 
