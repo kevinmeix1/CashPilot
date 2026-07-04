@@ -157,6 +157,7 @@ pnpm preview    # preview built frontend
 ## Docs
 
 - [Architecture](docs/architecture.md)
+- [Detailed App Deep Dive](docs/APP_DEEP_DIVE.md)
 - [Design Decisions](docs/decisions.md)
 - [Demo Script](docs/demo_script.md)
 - [User Guide](docs/USER_GUIDE.md)
